@@ -1,0 +1,23 @@
+# Python
+venv/
+env/
+__pycache__/
+*.py[cod]
+
+# Local database
+db.sqlite3
+
+# Environment variables
+.env
+
+# Google OAuth credentials and tokens
+credentials.json
+token.json
+token*.json
+client_secret*.json
+
+# Audio files
+*.mp3
+
+# Generated Django files
+staticfiles/

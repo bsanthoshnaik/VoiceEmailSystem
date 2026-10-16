@@ -1,0 +1,2873 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Compose Email - Voice Email Assistant</title>
+
+    <style>
+
+        * { box-sizing: border-box; }
+
+        body {
+
+            font-family: Arial, sans-serif;
+
+            background: #f3f3ff;
+
+            margin: 0;
+
+            padding: 30px;
+
+            color: #222;
+
+        }
+
+        .container {
+
+            max-width: 750px;
+
+            margin: 20px auto;
+
+            background: white;
+
+            padding: 30px;
+
+            border-radius: 12px;
+
+            box-shadow: 0 4px 15px rgba(0,0,0,.08);
+
+        }
+
+        h1 { color: #5145e5; margin-top: 0; }
+
+        label {
+
+            display: block;
+
+            margin-top: 18px;
+
+            margin-bottom: 7px;
+
+            font-weight: bold;
+
+        }
+
+        input, textarea {
+
+            width: 100%;
+
+            padding: 12px;
+
+            border: 1px solid #ccc;
+
+            border-radius: 6px;
+
+            font-size: 15px;
+
+            font-family: Arial, sans-serif;
+
+        }
+
+        input:focus, textarea:focus {
+
+            outline: 2px solid #b7b0ff;
+
+            border-color: #5145e5;
+
+        }
+
+        textarea {
+
+            min-height: 200px;
+
+            resize: vertical;
+
+            line-height: 1.6;
+
+        }
+
+        button, .back {
+
+            display: inline-block;
+
+            margin-top: 15px;
+
+            padding: 12px 18px;
+
+            border: none;
+
+            border-radius: 6px;
+
+            background: #5145e5;
+
+            color: white;
+
+            text-decoration: none;
+
+            cursor: pointer;
+
+            font-size: 15px;
+
+        }
+
+        button:hover, .back:hover { background: #3930b8; }
+
+        button:disabled {
+
+            opacity: .6;
+
+            cursor: not-allowed;
+
+        }
+
+        .voice-button { background: #087f5b; }
+
+        .voice-button:hover { background: #066649; }
+
+        .secondary-button { background: #555; }
+
+        .secondary-button:hover { background: #333; }
+
+        .telugu-button { background: #b45309; }
+
+        .telugu-button:hover { background: #92400e; }
+
+        .grammar-button { background: #0f766e; }
+
+        .grammar-button:hover { background: #115e59; }
+
+        .email-row {
+
+            display: flex;
+
+            align-items: stretch;
+
+            gap: 10px;
+
+        }
+
+        .email-row input { flex: 1; min-width: 0; }
+
+        .verify-button {
+
+            margin-top: 0;
+
+            white-space: nowrap;
+
+        }
+
+        #email-verify-status {
+
+            margin-top: 10px;
+
+            font-size: 14px;
+
+            overflow-wrap: anywhere;
+
+        }
+
+        .message-input-area {
+
+            display: flex;
+
+            flex-direction: column;
+
+            align-items: flex-start;
+
+            gap: 8px;
+
+        }
+
+        .message-input-area textarea { width: 100%; }
+
+        .attachment-btn {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            width: auto;
+
+            min-height: 40px;
+
+            margin: 0 0 8px;
+
+            padding: 10px 16px;
+
+            border-radius: 8px;
+
+            background: #5145e5;
+
+            color: white;
+
+            font-size: 14px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+        }
+
+        #attachments { display: none; }
+
+        #selected-files { margin-top: 8px; font-size: 14px; }
+
+        .selected-file {
+
+            display: inline-block;
+
+            width: auto;
+
+            margin: 3px 10px 3px 0;
+
+            padding: 4px 0;
+
+            background: transparent;
+
+            color: #3930b8;
+
+            cursor: pointer;
+
+            text-decoration: underline;
+
+            overflow-wrap: anywhere;
+
+        }
+
+        .preview-modal {
+
+            display: none;
+
+            position: fixed;
+
+            inset: 0;
+
+            z-index: 1000;
+
+            background: rgba(0,0,0,.75);
+
+            padding: 20px;
+
+            align-items: center;
+
+            justify-content: center;
+
+        }
+
+        .preview-modal.open { display: flex; }
+
+        .preview-panel {
+
+            background: white;
+
+            width: min(900px, 100%);
+
+            height: min(85vh, 800px);
+
+            border-radius: 10px;
+
+            overflow: hidden;
+
+            display: flex;
+
+            flex-direction: column;
+
+        }
+
+        .preview-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            gap: 12px;
+
+            padding: 10px 16px;
+
+            border-bottom: 1px solid #ddd;
+
+        }
+
+        .preview-header strong { overflow-wrap: anywhere; }
+
+        .preview-header button {
+
+            margin: 0;
+
+            padding: 8px 12px;
+
+            flex-shrink: 0;
+
+        }
+
+        .preview-display {
+
+            flex: 1;
+
+            min-height: 0;
+
+            width: 100%;
+
+            border: 0;
+
+            object-fit: contain;
+
+        }
+
+        .preview-message { padding: 20px; }
+
+        .message {
+
+            padding: 12px;
+
+            border-radius: 6px;
+
+            margin-bottom: 15px;
+
+            overflow-wrap: anywhere;
+
+        }
+
+        .success { background: #d8f5df; color: #166534; }
+
+        .error { background: #ffe5e5; color: #a00000; }
+
+        .hint {
+
+            color: #666;
+
+            font-size: 13px;
+
+            line-height: 1.6;
+
+        }
+
+        #voice-status {
+
+            margin-top: 15px;
+
+            padding: 12px;
+
+            border-radius: 6px;
+
+            background: #f0efff;
+
+            color: #3930b8;
+
+            font-size: 14px;
+
+            line-height: 1.6;
+
+            overflow-wrap: anywhere;
+
+            white-space: pre-wrap;
+
+        }
+
+        .section-title {
+
+            margin-top: 25px;
+
+            padding-bottom: 8px;
+
+            border-bottom: 1px solid #eee;
+
+        }
+
+        .send-button {
+
+            background: #087f5b;
+
+            width: 100%;
+
+            font-weight: bold;
+
+        }
+
+        .send-button:hover { background: #066649; }
+
+        @media (max-width: 600px) {
+
+            body { padding: 12px; }
+
+            .container {
+
+                padding: 20px;
+
+                margin: 8px auto;
+
+            }
+
+            .email-row { flex-direction: column; }
+
+            .email-row .verify-button { width: 100%; }
+
+            button, .back { max-width: 100%; }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>✉️ Compose Email</h1>
+
+    <p>
+
+        Compose an email using your voice or keyboard. The assistant can
+
+        check the email format, correct English grammar, and read your
+
+        message aloud in English or Telugu.
+
+    </p>
+
+    <a href="/" class="back">← Back to Dashboard</a>
+
+    {% if messages %}
+
+        {% for message in messages %}
+
+            <div class="message {% if message.tags == 'success' %}success{% else %}error{% endif %}">
+
+                {{ message }}
+
+            </div>
+
+        {% endfor %}
+
+    {% endif %}
+
+    <form method="POST"
+
+          action="{% url 'compose_email' %}"
+
+          id="compose-form"
+
+          enctype="multipart/form-data">
+
+        {% csrf_token %}
+
+        <h3 class="section-title">📧 Email Details</h3>
+
+        <label for="recipient">To (Email Address)</label>
+
+        <div class="email-row">
+
+            <input
+
+                type="email"
+
+                id="recipient"
+
+                name="recipient"
+
+                placeholder="example@gmail.com"
+
+                autocomplete="email"
+
+                maxlength="254"
+
+                required
+
+            >
+
+            <button type="button"
+
+                    class="verify-button"
+
+                    id="verify-email-btn">
+
+                Verify Email ID
+
+            </button>
+
+        </div>
+
+        <p id="email-verify-status"
+
+           class="hint"
+
+           role="status"
+
+           aria-live="polite">
+
+            You can speak only the Gmail username, for example
+
+            "bsanthosh4045". The assistant adds "@gmail.com".
+
+        </p>
+
+        <label for="subject">Subject</label>
+
+        <input
+
+            type="text"
+
+            id="subject"
+
+            name="subject"
+
+            placeholder="Enter email subject"
+
+            required
+
+        >
+
+        <h3 class="section-title">🎤 Voice Email Assistant</h3>
+
+        <p class="hint">
+
+            Start the voice workflow to answer the assistant's questions
+
+            one by one. You can also use the buttons manually.
+
+        </p>
+
+        <button type="button"
+
+                class="voice-button"
+
+                id="start-email-workflow">
+
+            🎙️ Start Voice Email
+
+        </button>
+
+        <button type="button"
+
+                class="voice-button"
+
+                id="voice-button">
+
+            🎤 Speak in Telugu
+
+        </button>
+
+        <button type="button"
+
+                class="telugu-button"
+
+                id="read-telugu-button">
+
+            🔊 Read Telugu Aloud
+
+        </button>
+
+        <button type="button"
+
+                class="secondary-button"
+
+                id="read-button">
+
+            🔊 Read English Aloud
+
+        </button>
+
+        <button type="button"
+
+                class="secondary-button"
+
+                id="stop-button">
+
+            ⏹ Stop Voice
+
+        </button>
+
+        <p id="voice-status" role="status" aria-live="polite">
+
+            Ready. Click Start Voice Email to begin.
+
+        </p>
+
+        <label for="body">Email Message (English)</label>
+
+        <div class="message-input-area">
+
+            <label for="attachments" class="attachment-btn">
+
+                🗂️ Attach File
+
+            </label>
+
+            <input
+
+                type="file"
+
+                id="attachments"
+
+                name="attachments"
+
+                accept="image/*,.pdf"
+
+                multiple
+
+            >
+
+            <textarea
+
+                id="body"
+
+                name="body"
+
+                placeholder="Type your English message here or use the microphone."
+
+                required
+
+            ></textarea>
+
+        </div>
+
+        <div id="selected-files" aria-live="polite"></div>
+
+        <button type="button"
+
+                class="grammar-button"
+
+                id="grammar-button">
+
+            ✍️ Correct English Grammar
+
+        </button>
+
+        <p class="hint">
+
+            Review the corrected message before confirming that you want
+
+            to send the email. Your email will be sent in English.
+
+        </p>
+
+        <button type="submit"
+
+                class="send-button"
+
+                id="send-button">
+
+            📤 Send Email
+
+        </button>
+
+    </form>
+
+</div>
+
+<div id="attachment-preview-modal"
+
+     class="preview-modal"
+
+     role="dialog"
+
+     aria-modal="true"
+
+     aria-label="Attachment preview">
+
+    <div class="preview-panel">
+
+        <div class="preview-header">
+
+            <strong id="preview-title">Attachment preview</strong>
+
+            <button type="button" id="close-preview-btn">✕ Close</button>
+
+        </div>
+
+        <div id="preview-display" class="preview-display"></div>
+
+    </div>
+
+</div>
+
+<script>
+
+"use strict";
+
+let recognition = null;
+
+let isListening = false;
+
+let currentAudio = null;
+
+let currentAudioUrl = null;
+
+let lastTeluguText = "";
+
+let audioRequestNumber = 0;
+
+let verifiedRecipient = "";
+
+let previewObjectUrl = null;
+
+let workflowActive = false;
+
+let workflowBusy = false;
+
+let workflowCancelled = false;
+
+let emailConfirmedForSending = false;
+
+let grammarCorrected = false;
+
+let emailSubmissionStarted = false;
+
+const voiceButton = document.getElementById("voice-button");
+
+const readTeluguButton = document.getElementById("read-telugu-button");
+
+const stopButton = document.getElementById("stop-button");
+
+const readButton = document.getElementById("read-button");
+
+const sendButton = document.getElementById("send-button");
+
+const workflowButton = document.getElementById("start-email-workflow");
+
+const statusElement = document.getElementById("voice-status");
+
+const bodyElement = document.getElementById("body");
+
+const subjectInput = document.getElementById("subject");
+
+const formElement = document.getElementById("compose-form");
+
+const grammarButton = document.getElementById("grammar-button");
+
+const verifyEmailButton = document.getElementById("verify-email-btn");
+
+const emailVerifyStatus = document.getElementById("email-verify-status");
+
+const recipientInput = document.getElementById("recipient");
+
+const attachmentInput = document.getElementById("attachments");
+
+const selectedFilesElement = document.getElementById("selected-files");
+
+const previewModal = document.getElementById("attachment-preview-modal");
+
+const previewDisplay = document.getElementById("preview-display");
+
+const previewTitle = document.getElementById("preview-title");
+
+const closePreviewButton = document.getElementById("close-preview-btn");
+
+
+
+// ---------------------------------------------
+
+// CSRF TOKEN
+
+// ---------------------------------------------
+
+function getCsrfToken() {
+
+    const token = document.querySelector('[name="csrfmiddlewaretoken"]');
+
+    return token ? token.value : "";
+
+}
+
+
+
+// ---------------------------------------------
+
+// EMAIL FORMAT CHECK
+
+// ---------------------------------------------
+
+function isValidEmailFormat(value) {
+
+    const email = String(value || "").trim();
+
+    if (!email || email.length > 254 || /\s/.test(email)) {
+
+        return false;
+
+    }
+
+    const parts = email.split("@");
+
+    if (parts.length !== 2) {
+
+        return false;
+
+    }
+
+    const local = parts[0];
+
+    const domain = parts[1];
+
+    if (!local || local.length > 64 || !domain || domain.length > 253) {
+
+        return false;
+
+    }
+
+    if (
+
+        local.startsWith(".") ||
+
+        local.endsWith(".") ||
+
+        local.includes("..")
+
+    ) {
+
+        return false;
+
+    }
+
+    if (!/^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(local)) {
+
+        return false;
+
+    }
+
+    const labels = domain.split(".");
+
+    if (labels.length < 2) {
+
+        return false;
+
+    }
+
+    for (const label of labels) {
+
+        if (
+
+            !label ||
+
+            label.length > 63 ||
+
+            label.startsWith("-") ||
+
+            label.endsWith("-") ||
+
+            !/^[A-Za-z0-9-]+$/.test(label)
+
+        ) {
+
+            return false;
+
+        }
+
+    }
+
+    const topLevelDomain = labels[labels.length - 1];
+
+    return /^[A-Za-z]{2,63}$/.test(topLevelDomain);
+
+}
+
+
+
+// ---------------------------------------------
+
+// LOAD DASHBOARD VALUES
+
+// ---------------------------------------------
+
+function loadVoiceAssistantDetails() {
+
+    const params = new URLSearchParams(window.location.search);
+
+    const recipient = params.get("recipient");
+
+    const subject = params.get("subject");
+
+    const body = params.get("body");
+
+    if (recipient) recipientInput.value = recipient;
+
+    if (subject) subjectInput.value = subject;
+
+    if (body) bodyElement.value = body;
+
+    if (recipient || subject || body) {
+
+        statusElement.textContent =
+
+            "Details received from the dashboard. Please review them.";
+
+        window.history.replaceState(
+
+            {},
+
+            document.title,
+
+            window.location.pathname
+
+        );
+
+    }
+
+}
+
+
+
+// ---------------------------------------------
+
+// SPEECH PLAYBACK
+
+// ---------------------------------------------
+
+function stopSpeechPlayback() {
+
+    if ("speechSynthesis" in window) {
+
+        window.speechSynthesis.cancel();
+
+    }
+
+    audioRequestNumber++;
+
+    if (currentAudio) {
+
+        currentAudio.pause();
+
+        currentAudio.currentTime = 0;
+
+        currentAudio.onended = null;
+
+        currentAudio.onerror = null;
+
+        currentAudio = null;
+
+    }
+
+    if (currentAudioUrl) {
+
+        URL.revokeObjectURL(currentAudioUrl);
+
+        currentAudioUrl = null;
+
+    }
+
+}
+
+function workflowSpeak(text, language = "en-IN") {
+
+    return new Promise((resolve) => {
+
+        if (!("speechSynthesis" in window)) {
+
+            statusElement.textContent = text;
+
+            resolve();
+
+            return;
+
+        }
+
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(text);
+
+        utterance.lang = language;
+
+        utterance.rate = 0.95;
+
+        utterance.pitch = 1;
+
+        let finished = false;
+
+        function finish() {
+
+            if (finished) return;
+
+            finished = true;
+
+            resolve();
+
+        }
+
+        utterance.onend = finish;
+
+        utterance.onerror = finish;
+
+        window.speechSynthesis.speak(utterance);
+
+    });
+
+}
+
+
+
+// ---------------------------------------------
+
+// SPEECH RECOGNITION
+
+// ---------------------------------------------
+
+function listenForAnswer(language = "en-IN", emailMode = false) {
+    return new Promise((resolve, reject) => {
+        const SpeechRecognition =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (!SpeechRecognition) {
+            reject(new Error("Voice recognition is unavailable. Please use Google Chrome or Microsoft Edge."));
+            return;
+        }
+
+        const recognizer = new SpeechRecognition();
+        recognition = recognizer;
+        recognizer.lang = language;
+        recognizer.continuous = Boolean(emailMode);
+        recognizer.interimResults = true;
+        recognizer.maxAlternatives = 8;
+
+        let finished = false;
+        let finalParts = [];
+        let interimParts = [];
+        let resultTimer = null;
+        let hardStopTimer = null;
+        let lastActivity = Date.now();
+
+        function cleanup() {
+            isListening = false;
+            if (resultTimer) clearTimeout(resultTimer);
+            if (hardStopTimer) clearTimeout(hardStopTimer);
+            resultTimer = null;
+            hardStopTimer = null;
+            if (recognition === recognizer) recognition = null;
+            recognizer.onresult = null;
+            recognizer.onerror = null;
+            recognizer.onend = null;
+            try { recognizer.stop(); } catch (error) { /* already stopped */ }
+        }
+
+        function candidatesFromAlternatives(event) {
+            const candidates = [];
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const result = event.results[i];
+                if (!result || !result.length) continue;
+                for (let j = 0; j < result.length; j++) {
+                    const text = String(result[j].transcript || "").trim();
+                    if (text && !candidates.includes(text)) candidates.push(text);
+                }
+            }
+            return candidates;
+        }
+
+        function chooseEmailCandidate(values) {
+            const unique = [...new Set(values.map(v => String(v || "").trim()).filter(Boolean))];
+            // Prefer a recognized candidate that becomes a valid address after
+            // converting spoken words such as "at" and "dot" into symbols.
+            for (const value of unique) {
+                const normalized = normalizeSpokenEmail(value);
+                if (isValidEmailFormat(normalized)) return value;
+            }
+            // If no candidate is fully valid, return the longest transcript;
+            // this is more likely to contain the complete spoken address.
+            unique.sort((a, b) => b.length - a.length);
+            return unique[0] || "";
+        }
+
+        function finishWith(value) {
+            if (finished) return;
+            const answer = String(value || "").trim();
+            if (!answer) return;
+            finished = true;
+            cleanup();
+            resolve(answer);
+        }
+
+        function scheduleFinish() {
+            if (resultTimer) clearTimeout(resultTimer);
+            const delay = emailMode ? 2600 : 1000;
+            resultTimer = setTimeout(() => {
+                const all = [...finalParts, ...interimParts];
+                finishWith(emailMode ? chooseEmailCandidate(all) : (finalParts.join(" ").trim() || interimParts.join(" ").trim()));
+            }, delay);
+        }
+
+        recognizer.onresult = function(event) {
+            if (finished) return;
+            lastActivity = Date.now();
+            const candidates = candidatesFromAlternatives(event);
+            if (!candidates.length) return;
+
+            const result = event.results[event.results.length - 1];
+            const bestText = candidates[0];
+            if (result && result.isFinal) {
+                if (emailMode) {
+                    // Keep all alternatives so a valid email interpretation can win.
+                    finalParts.push(...candidates);
+                    interimParts = [];
+                    const preview = chooseEmailCandidate(finalParts);
+                    statusElement.textContent = "🎤 Email heard so far: " + preview +
+                        "\nKeep speaking if needed, then pause briefly. Check the address before continuing.";
+                } else {
+                    finalParts.push(bestText);
+                    finishWith(finalParts.join(" "));
+                    return;
+                }
+            } else {
+                interimParts = candidates;
+                const preview = emailMode
+                    ? chooseEmailCandidate([...finalParts, ...interimParts])
+                    : [...finalParts, ...interimParts][0];
+                statusElement.textContent = (emailMode ? "🎤 Email heard so far: " : "🎤 I can hear you: ") +
+                    (preview || "") + "\nPlease finish speaking...";
+            }
+            scheduleFinish();
+        };
+
+        recognizer.onerror = function(event) {
+            if (finished) return;
+            if (event.error === "no-speech" && (finalParts.length || interimParts.length)) {
+                finishWith(emailMode ? chooseEmailCandidate([...finalParts, ...interimParts]) : finalParts.join(" "));
+                return;
+            }
+            finished = true;
+            cleanup();
+            let message;
+            if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+                message = "Please allow microphone access in your browser.";
+            } else if (event.error === "no-speech") {
+                message = "No speech was detected. Click Start Voice Email and speak after the listening message.";
+            } else if (event.error === "audio-capture") {
+                message = "No microphone was found. Check your microphone.";
+            } else if (event.error === "network") {
+                message = "Speech recognition network error. Check your internet connection.";
+            } else {
+                message = "Speech recognition error: " + event.error;
+            }
+            reject(new Error(message));
+        };
+
+        recognizer.onend = function() {
+            if (finished) return;
+            const values = [...finalParts, ...interimParts];
+            if (values.length) {
+                // Allow the pause timer to select the best complete email rather
+                // than immediately returning the first partial recognition.
+                if (resultTimer) clearTimeout(resultTimer);
+                resultTimer = setTimeout(() => {
+                    finishWith(emailMode ? chooseEmailCandidate(values) : values[0]);
+                }, emailMode ? 500 : 100);
+                return;
+            }
+            finished = true;
+            cleanup();
+            reject(new Error("I did not catch your voice. Speak after the listening message."));
+        };
+
+        isListening = true;
+        try {
+            recognizer.start();
+            // Avoid leaving the microphone open indefinitely.
+            hardStopTimer = setTimeout(() => {
+                const values = [...finalParts, ...interimParts];
+                if (values.length) {
+                    finishWith(emailMode ? chooseEmailCandidate(values) : values[0]);
+                } else if (!finished) {
+                    finished = true;
+                    cleanup();
+                    reject(new Error("No email address was detected. Please try again and say the address slowly."));
+                }
+            }, emailMode ? 18000 : 12000);
+        } catch (error) {
+            finished = true;
+            cleanup();
+            reject(new Error("Could not start the microphone. Please try again."));
+        }
+    });
+}
+
+async function askVoiceQuestion(question, language = "en-IN", emailMode = false) {
+
+    if (workflowCancelled) {
+
+        throw new Error("Voice workflow cancelled.");
+
+    }
+
+    statusElement.textContent = question;
+
+    await workflowSpeak(question, language);
+
+    if (workflowCancelled) {
+
+        throw new Error("Voice workflow cancelled.");
+
+    }
+
+    statusElement.textContent =
+
+        "🎤 Listening for your answer...";
+
+    return await listenForAnswer(language, emailMode);
+
+}
+
+
+
+// ---------------------------------------------
+
+// NORMALIZE SPOKEN EMAIL
+
+// ---------------------------------------------
+
+function normalizeSpokenEmail(value) {
+    let email = String(value || "").toLowerCase().trim();
+
+    // Convert common ways people speak email symbols.
+    email = email
+        .replace(/[“”"'`]/g, "")
+        .replace(/\b(at the rate|at sign|at symbol)\b/gi, " @ ")
+        .replace(/\b(at)\b/gi, " @ ")
+        .replace(/\b(dot|period|full stop)\b/gi, " . ")
+        .replace(/\b(underscore|under score)\b/gi, " _ ")
+        .replace(/\b(hyphen|dash)\b/gi, " - ")
+        .replace(/\b(plus)\b/gi, " + ")
+        .replace(/\s+/g, " ")
+        .trim();
+
+    // Spoken digit words. Apply only to complete words.
+    const digitWords = {
+        zero: "0", oh: "0", one: "1", two: "2", three: "3",
+        four: "4", five: "5", six: "6", seven: "7",
+        eight: "8", nine: "9"
+    };
+    email = email.replace(/\b(zero|oh|one|two|three|four|five|six|seven|eight|nine)\b/gi,
+        word => digitWords[word.toLowerCase()]);
+
+    // Remove spaces around symbols and join spoken email parts.
+    email = email
+        .replace(/\s*@\s*/g, "@")
+        .replace(/\s*\.\s*/g, ".")
+        .replace(/\s*_\s*/g, "_")
+        .replace(/\s*-\s*/g, "-")
+        .replace(/\s*\+\s*/g, "+")
+        .replace(/[\s,;:]+/g, "")
+        .replace(/^[@.]+|[@.]+$/g, "");
+
+    // If recognition heard "name gmail.com" but missed the word "at",
+    // insert @ before a common email domain.
+    if (!email.includes("@")) {
+        const domains = ["gmail.com", "outlook.com", "hotmail.com", "yahoo.com", "icloud.com"];
+        for (const domain of domains) {
+            if (email.endsWith(domain) && email.length > domain.length) {
+                email = email.slice(0, -domain.length) + "@" + domain;
+                break;
+            }
+        }
+    }
+
+    // If the user clearly says only a username, interpret it as Gmail,
+    // but the workflow must still show it and ask the user to confirm it.
+    if (email && !email.includes("@") && /^[a-z0-9._+-]+$/.test(email)) {
+        email += "@gmail.com";
+    }
+
+    return email;
+}
+
+function normalizeVoiceAnswer(value) {
+
+    return String(value || "")
+
+        .toLowerCase()
+
+        .trim()
+
+        .replace(/[.,!?;:\\'"()[\]{}]/g, " ")
+
+        .replace(/\s+/g, " ")
+
+        .trim();
+
+}
+
+function isYesAnswer(value) {
+    const answer = normalizeVoiceAnswer(value)
+        .replace(/\b(yes|yeah|yep|yup)\s+\1\b/g, "$1");
+
+    // A clear cancellation always wins; never treat a negative sentence as Yes.
+    if (isNoAnswer(answer)) return false;
+
+    // Browsers sometimes return extra words or duplicate the recognized word
+    // (for example, "yes yes" or "yes, send it"). Accept a clear affirmative.
+    if (/^(yes|yeah|yep|yup|sure|correct|confirm|confirmed|okay|ok)( please)?$/.test(answer)) {
+        return true;
+    }
+    if (/^(yes|yeah|yep|yup)\b/.test(answer)) return true;
+    if (/^(send|send it|send email|send the email|please send|go ahead)( please)?$/.test(answer)) {
+        return true;
+    }
+    return false;
+}
+
+function isNoAnswer(value) {
+    const answer = normalizeVoiceAnswer(value);
+    return /\b(no|nope|nah|cancel|stop|dont|don't|do not|not send)\b/.test(answer) ||
+        /^(no|nope|nah|cancel|cancel it|do not send|dont send|don't send|no do not send|no dont send|no don't send|no cancel|stop|do not send it|dont send it|don't send it)( please)?$/.test(answer);
+}
+
+
+
+// ---------------------------------------------
+
+// VERIFY RECIPIENT
+
+// ---------------------------------------------
+
+async function verifyRecipientAutomatically(email) {
+
+    email = String(email || "").trim().toLowerCase();
+
+    recipientInput.value = email;
+
+    if (!isValidEmailFormat(email)) {
+
+        verifiedRecipient = "";
+
+        emailConfirmedForSending = false;
+
+        emailVerifyStatus.textContent =
+
+            "❌ Invalid email format. Please enter or say the email address again.";
+
+        emailVerifyStatus.classList.remove("success");
+
+        emailVerifyStatus.classList.add("error");
+
+        return {
+
+            success: false,
+
+            message: "Invalid email format. Please try again."
+
+        };
+
+    }
+
+    const csrfToken = getCsrfToken();
+
+    if (!csrfToken) {
+
+        throw new Error("CSRF token missing. Refresh the page.");
+
+    }
+
+    emailVerifyStatus.textContent = "Checking email address...";
+
+    emailVerifyStatus.classList.remove("success", "error");
+
+    const response = await fetch(
+
+        "{% url 'verify_recipient' %}",
+
+        {
+
+            method: "POST",
+
+            headers: {
+
+                "Content-Type": "application/x-www-form-urlencoded",
+
+                "X-CSRFToken": csrfToken
+
+            },
+
+            body: new URLSearchParams({
+
+                recipient: email
+
+            }).toString()
+
+        }
+
+    );
+
+    let data;
+
+    try {
+
+        data = await response.json();
+
+    } catch (error) {
+
+        throw new Error(
+
+            "Invalid response from the email verification server."
+
+        );
+
+    }
+
+    if (!response.ok || data.success !== true) {
+
+        verifiedRecipient = "";
+
+        emailConfirmedForSending = false;
+
+        emailVerifyStatus.textContent =
+
+            data.message ||
+
+            data.error ||
+
+            "The email address was rejected. Please try again.";
+
+        emailVerifyStatus.classList.remove("success");
+
+        emailVerifyStatus.classList.add("error");
+
+        return {
+
+            success: false,
+
+            message: emailVerifyStatus.textContent
+
+        };
+
+    }
+
+    if (
+
+        recipientInput.value.trim().toLowerCase() !== email
+
+    ) {
+
+        verifiedRecipient = "";
+
+        return {
+
+            success: false,
+
+            message: "The recipient changed. Please verify it again."
+
+        };
+
+    }
+
+    verifiedRecipient = email;
+
+    emailVerifyStatus.textContent =
+
+        "✅ " + (
+
+            data.message ||
+
+            "Email address format is valid."
+
+        );
+
+    emailVerifyStatus.classList.remove("error");
+
+    emailVerifyStatus.classList.add("success");
+
+    return {
+
+        success: true,
+
+        message: data.message || "Email address format is valid."
+
+    };
+
+}
+
+
+
+// ---------------------------------------------
+
+// MANUAL EMAIL VERIFICATION BUTTON
+
+// ---------------------------------------------
+
+verifyEmailButton.addEventListener("click", async function() {
+
+    const email = recipientInput.value.trim();
+
+    if (!isValidEmailFormat(email)) {
+
+        verifiedRecipient = "";
+
+        emailVerifyStatus.textContent =
+
+            "❌ Invalid email format. Example: name@gmail.com";
+
+        emailVerifyStatus.classList.remove("success");
+
+        emailVerifyStatus.classList.add("error");
+
+        recipientInput.focus();
+
+        return;
+
+    }
+
+    verifyEmailButton.disabled = true;
+
+    verifyEmailButton.textContent = "Checking...";
+
+    try {
+
+        const result = await verifyRecipientAutomatically(email);
+
+        statusElement.textContent = result.message;
+
+    } catch (error) {
+
+        verifiedRecipient = "";
+
+        emailVerifyStatus.textContent =
+
+            "❌ " + error.message;
+
+        emailVerifyStatus.classList.remove("success");
+
+        emailVerifyStatus.classList.add("error");
+
+    } finally {
+
+        verifyEmailButton.disabled = false;
+
+        verifyEmailButton.textContent = "Verify Email ID";
+
+    }
+
+});
+
+recipientInput.addEventListener("input", function() {
+
+    verifiedRecipient = "";
+
+    emailConfirmedForSending = false;
+
+    emailSubmissionStarted = false;
+
+    emailVerifyStatus.textContent =
+
+        "The recipient changed. Verify the new address before sending.";
+
+    emailVerifyStatus.classList.remove("success", "error");
+
+});
+
+
+
+// ---------------------------------------------
+
+// TRANSLATION REQUEST
+
+// ---------------------------------------------
+
+async function requestTranslation(text, direction) {
+
+    const csrfToken = getCsrfToken();
+
+    if (!csrfToken) {
+
+        throw new Error("CSRF token missing. Refresh the page.");
+
+    }
+
+    const response = await fetch(
+
+        "{% url 'translate_telugu' %}",
+
+        {
+
+            method: "POST",
+
+            headers: {
+
+                "Content-Type": "application/json",
+
+                "X-CSRFToken": csrfToken
+
+            },
+
+            body: JSON.stringify({
+
+                text: text,
+
+                direction: direction
+
+            })
+
+        }
+
+    );
+
+    let data;
+
+    try {
+
+        data = await response.json();
+
+    } catch (error) {
+
+        throw new Error(
+
+            "Invalid response from the translation server."
+
+        );
+
+    }
+
+    if (!response.ok) {
+
+        throw new Error(data.error || "Translation failed.");
+
+    }
+
+    if (!data.translation) {
+
+        throw new Error("No translation was returned.");
+
+    }
+
+    return data;
+
+}
+
+
+
+// ---------------------------------------------
+
+// READ ENGLISH MESSAGE IN TELUGU
+
+// ---------------------------------------------
+
+async function speakTelugu() {
+
+    const englishText = bodyElement.value.trim();
+
+    if (!englishText) {
+
+        statusElement.textContent =
+
+            "Please enter an English message first.";
+
+        return;
+
+    }
+
+    stopSpeechPlayback();
+
+    const thisRequest = audioRequestNumber;
+
+    readTeluguButton.disabled = true;
+
+    statusElement.textContent =
+
+        "🌐 Translating your message into Telugu...";
+
+    try {
+
+        const data = await requestTranslation(englishText, "en-te");
+
+        if (thisRequest !== audioRequestNumber) return;
+
+        lastTeluguText = data.translation;
+
+        statusElement.textContent =
+
+            "English: " + englishText +
+
+            "\n\nTelugu: " + lastTeluguText +
+
+            "\n\nPreparing Telugu audio...";
+
+        await playTeluguAudio(lastTeluguText, thisRequest);
+
+    } catch (error) {
+
+        if (thisRequest === audioRequestNumber) {
+
+            statusElement.textContent =
+
+                "❌ Telugu translation/audio error: " +
+
+                error.message;
+
+        }
+
+        // Let the main workflow report the error when it called this.
+
+        if (workflowActive) {
+
+            throw error;
+
+        }
+
+    } finally {
+
+        readTeluguButton.disabled = false;
+
+    }
+
+}
+
+async function playTeluguAudio(teluguText, requestNumber) {
+
+    if (!teluguText || !teluguText.trim()) {
+
+        throw new Error("No Telugu text is available.");
+
+    }
+
+    if (requestNumber !== audioRequestNumber) return;
+
+    const response = await fetch(
+
+        "{% url 'telugu_audio' %}",
+
+        {
+
+            method: "POST",
+
+            headers: {
+
+                "Content-Type": "application/json",
+
+                "X-CSRFToken": getCsrfToken()
+
+            },
+
+            body: JSON.stringify({
+
+                text: teluguText
+
+            })
+
+        }
+
+    );
+
+    if (!response.ok) {
+
+        let message = "Unable to generate Telugu audio.";
+
+        try {
+
+            const data = await response.json();
+
+            message = data.error || message;
+
+        } catch (error) {
+
+            // Use the default message.
+
+        }
+
+        throw new Error(message);
+
+    }
+
+    const audioBlob = await response.blob();
+
+    if (!audioBlob.size) {
+
+        throw new Error("The Telugu audio file is empty.");
+
+    }
+
+    if (requestNumber !== audioRequestNumber) return;
+
+    const audioUrl = URL.createObjectURL(audioBlob);
+
+    const audio = new Audio(audioUrl);
+
+    currentAudioUrl = audioUrl;
+
+    currentAudio = audio;
+
+    statusElement.textContent =
+
+        "🔊 Reading your message in Telugu...";
+
+    await new Promise((resolve, reject) => {
+
+        audio.onended = function() {
+
+            if (currentAudio === audio) {
+
+                currentAudio = null;
+
+            }
+
+            if (currentAudioUrl === audioUrl) {
+
+                URL.revokeObjectURL(audioUrl);
+
+                currentAudioUrl = null;
+
+            }
+
+            if (requestNumber === audioRequestNumber) {
+
+                statusElement.textContent =
+
+                    "✅ Finished reading the message in Telugu.";
+
+            }
+
+            resolve();
+
+        };
+
+        audio.onerror = function() {
+
+            if (currentAudio === audio) currentAudio = null;
+
+            if (currentAudioUrl === audioUrl) {
+
+                URL.revokeObjectURL(audioUrl);
+
+                currentAudioUrl = null;
+
+            }
+
+            reject(new Error("Unable to play Telugu audio."));
+
+        };
+
+        audio.play().catch(function() {
+
+            reject(new Error(
+
+                "Audio could not start. Check your sound settings."
+
+            ));
+
+        });
+
+    });
+
+}
+
+
+
+// ---------------------------------------------
+
+// SPEAK TELUGU AND TRANSLATE INTO ENGLISH
+
+// ---------------------------------------------
+
+function startTeluguVoice() {
+
+    if (isListening || workflowActive) return;
+
+    stopSpeechPlayback();
+
+    statusElement.textContent = "🎤 Listening in Telugu...";
+
+    listenForAnswer("te-IN")
+
+        .then(async function(teluguText) {
+
+            statusElement.textContent =
+
+                "Recognized Telugu: " + teluguText +
+
+                "\nTranslating into English...";
+
+            const data = await requestTranslation(teluguText, "te-en");
+
+            bodyElement.value = data.translation;
+
+            grammarCorrected = false;
+
+            statusElement.textContent =
+
+                "Translation completed. Review your English message.";
+
+        })
+
+        .catch(function(error) {
+
+            statusElement.textContent =
+
+                "❌ " + error.message;
+
+        });
+
+}
+
+
+
+// ---------------------------------------------
+
+// READ ENGLISH MESSAGE ALOUD
+
+// ---------------------------------------------
+
+function speakEnglish() {
+
+    const text = bodyElement.value.trim();
+
+    if (!text) {
+
+        statusElement.textContent =
+
+            "Please enter an English message first.";
+
+        return Promise.resolve();
+
+    }
+
+    if (!("speechSynthesis" in window)) {
+
+        statusElement.textContent =
+
+            "This browser does not support text-to-speech.";
+
+        return Promise.resolve();
+
+    }
+
+    stopSpeechPlayback();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    utterance.lang = "en-IN";
+
+    utterance.rate = 0.95;
+
+    utterance.pitch = 1;
+
+    statusElement.textContent =
+
+        "🔊 Reading the English message aloud...";
+
+    return new Promise((resolve) => {
+
+        utterance.onend = function() {
+
+            statusElement.textContent =
+
+                "Finished reading the English message.";
+
+            resolve();
+
+        };
+
+        utterance.onerror = function() {
+
+            statusElement.textContent =
+
+                "Unable to read the English message aloud.";
+
+            resolve();
+
+        };
+
+        window.speechSynthesis.speak(utterance);
+
+    });
+
+}
+
+
+
+// ---------------------------------------------
+
+// GRAMMAR CORRECTION
+
+// ---------------------------------------------
+
+async function automaticallyCorrectGrammar() {
+
+    const originalText = bodyElement.value.trim();
+
+    if (!originalText) {
+
+        throw new Error("The email message cannot be empty.");
+
+    }
+
+    const response = await fetch(
+
+        "{% url 'correct_grammar' %}",
+
+        {
+
+            method: "POST",
+
+            headers: {
+
+                "Content-Type": "application/json",
+
+                "X-CSRFToken": getCsrfToken()
+
+            },
+
+            body: JSON.stringify({
+
+                text: originalText
+
+            })
+
+        }
+
+    );
+
+    let data;
+
+    try {
+
+        data = await response.json();
+
+    } catch (error) {
+
+        throw new Error(
+
+            "Invalid response from grammar correction."
+
+        );
+
+    }
+
+    if (!response.ok) {
+
+        throw new Error(data.error || "Grammar correction failed.");
+
+    }
+
+    const corrected =
+
+        data.corrected_text ||
+
+        data.corrected ||
+
+        data.correction ||
+
+        data.text;
+
+    if (typeof corrected !== "string" || !corrected.trim()) {
+
+        throw new Error(
+
+            "No corrected message was returned by the server."
+
+        );
+
+    }
+
+    bodyElement.value = corrected.trim();
+
+    grammarCorrected = true;
+
+    statusElement.textContent =
+
+        "✅ English grammar corrected. Please review the message.";
+
+}
+
+grammarButton.addEventListener("click", async function() {
+
+    grammarButton.disabled = true;
+
+    grammarButton.textContent = "Checking Grammar...";
+
+    try {
+
+        await automaticallyCorrectGrammar();
+
+        bodyElement.focus();
+
+    } catch (error) {
+
+        statusElement.textContent =
+
+            "❌ Grammar correction error: " + error.message;
+
+    } finally {
+
+        grammarButton.disabled = false;
+
+        grammarButton.textContent = "✍️ Correct English Grammar";
+
+    }
+
+});
+
+
+
+// ---------------------------------------------
+
+// AUTOMATIC EMAIL WORKFLOW
+
+// ---------------------------------------------
+
+async function startEmailWorkflow() {
+
+    if (workflowActive || workflowBusy) return;
+
+    workflowActive = true;
+
+    workflowBusy = true;
+
+    workflowCancelled = false;
+
+    emailConfirmedForSending = false;
+
+    emailSubmissionStarted = false;
+
+    workflowButton.disabled = true;
+
+    verifiedRecipient = "";
+
+    try {
+
+        // STEP 1: GET AND VERIFY THE RECIPIENT.
+
+        let recipient = "";
+
+        let recipientAccepted = false;
+
+        while (!workflowCancelled && !recipientAccepted) {
+
+            let spokenEmail;
+
+            try {
+
+                spokenEmail = await askVoiceQuestion(
+                    "Please say the full recipient email address slowly. For example, name at gmail dot com. You can pause briefly between the username and the provider.",
+                    "en-IN",
+                    true
+                );
+
+            } catch (error) {
+
+                if (workflowCancelled) return;
+
+                statusElement.textContent =
+
+                    "I could not recognize the email address. Please try again.";
+
+                await workflowSpeak(
+
+                    "I did not catch the email address. Please try again."
+
+                );
+
+                continue;
+
+            }
+
+            recipient = normalizeSpokenEmail(spokenEmail);
+
+            recipientInput.value = recipient;
+
+            if (!isValidEmailFormat(recipient)) {
+
+                verifiedRecipient = "";
+
+                emailVerifyStatus.textContent =
+
+                    "❌ Invalid email format. Please say the email address again.";
+
+                emailVerifyStatus.classList.remove("success");
+
+                emailVerifyStatus.classList.add("error");
+
+                await workflowSpeak(
+
+                    "That email address format is invalid. Please say it again."
+
+                );
+
+                continue;
+
+            }
+
+            statusElement.textContent =
+
+                "Checking recipient: " + recipient;
+
+            try {
+
+                const result =
+
+                    await verifyRecipientAutomatically(recipient);
+
+                if (result.success) {
+
+                    recipientAccepted = true;
+
+                    await workflowSpeak(
+
+                        "The email address format is valid."
+
+                    );
+
+                } else {
+
+                    verifiedRecipient = "";
+
+                    await workflowSpeak(
+
+                        "The email address was rejected. Please say it again."
+
+                    );
+
+                }
+
+            } catch (error) {
+
+                verifiedRecipient = "";
+
+                emailVerifyStatus.textContent =
+
+                    "❌ Could not check the email: " + error.message;
+
+                emailVerifyStatus.classList.remove("success");
+
+                emailVerifyStatus.classList.add("error");
+
+                await workflowSpeak(
+
+                    "I could not check the email address. Please try again."
+
+                );
+
+            }
+
+        }
+
+        if (workflowCancelled || !recipientAccepted) return;
+
+        // STEP 2: GET THE SUBJECT.
+
+        const subject = await askVoiceQuestion(
+
+            "What is the subject of your email?"
+
+        );
+
+        subjectInput.value = subject;
+
+        if (workflowCancelled) return;
+
+        // STEP 3: GET THE MESSAGE.
+
+        const message = await askVoiceQuestion(
+
+            "What is your email message?"
+
+        );
+
+        bodyElement.value = message;
+
+        grammarCorrected = false;
+
+        if (workflowCancelled) return;
+
+        // STEP 4: AUTOMATICALLY CORRECT GRAMMAR.
+
+        statusElement.textContent =
+            "✍️ I am correcting the English grammar in your message. Please wait a few seconds.";
+        await workflowSpeak(
+            "I am correcting the English grammar in your message. Please wait a few seconds."
+        );
+        if (workflowCancelled) return;
+        await automaticallyCorrectGrammar();
+
+        if (workflowCancelled) return;
+
+        await workflowSpeak(
+
+            "I have corrected the English grammar in your message. " +
+
+            "Please review the corrected message on the screen."
+
+        );
+
+        if (workflowCancelled) return;
+
+        // STEP 5: READ THE MESSAGE IN ENGLISH OR TELUGU.
+
+        let languageSelected = false;
+
+        while (!workflowCancelled && !languageSelected) {
+
+            const choice = normalizeVoiceAnswer(
+
+                await askVoiceQuestion(
+
+                    "Would you like to hear your message in Telugu or English? " +
+
+                    "Say Telugu or English."
+
+                )
+
+            );
+
+            if (choice.includes("telugu")) {
+
+                await speakTelugu();
+
+                languageSelected = true;
+
+            } else if (choice.includes("english")) {
+
+                await speakEnglish();
+
+                languageSelected = true;
+
+            } else {
+
+                await workflowSpeak(
+
+                    "Please say Telugu or English."
+
+                );
+
+            }
+
+        }
+
+        if (workflowCancelled) return;
+
+        // STEP 6: ASK ONCE, THEN LISTEN FOR YES OR NO.
+        // On retries, do not repeat the long recipient question. A clear Yes
+        // immediately proceeds; No cancels; unclear audio gets at most 3 tries.
+        let confirmationReceived = false;
+        let confirmationAttempts = 0;
+        const maxConfirmationAttempts = 3;
+        const confirmationQuestion =
+            "Are you sure you want to send the email to " +
+            recipient +
+            "? Please say Yes to send or No to cancel.";
+
+        while (
+            !workflowCancelled &&
+            !confirmationReceived &&
+            confirmationAttempts < maxConfirmationAttempts
+        ) {
+            confirmationAttempts++;
+            let rawAnswer = "";
+
+            try {
+                if (confirmationAttempts === 1) {
+                    statusElement.textContent = confirmationQuestion;
+                    await workflowSpeak(confirmationQuestion, "en-IN");
+                } else {
+                    statusElement.textContent =
+                        "Please say Yes to send or No to cancel. Attempt " +
+                        confirmationAttempts + " of " + maxConfirmationAttempts + ".";
+                    await workflowSpeak("Please say Yes to send or No to cancel.", "en-IN");
+                }
+                if (workflowCancelled) return;
+                // Give the browser a short moment to stop its own spoken audio
+                // before opening the microphone, avoiding TTS being heard as input.
+                await new Promise(resolve => setTimeout(resolve, 350));
+                if (workflowCancelled) return;
+                statusElement.textContent = "🎤 Listening now. Say Yes to send or No to cancel.";
+                rawAnswer = await listenForAnswer("en-IN", false);
+            } catch (error) {
+                if (workflowCancelled) return;
+                console.warn("Voice confirmation attempt failed:", error);
+                if (confirmationAttempts >= maxConfirmationAttempts) {
+                    emailConfirmedForSending = false;
+                    emailSubmissionStarted = false;
+                    statusElement.textContent =
+                        "❌ I could not hear a clear Yes or No after 3 attempts. Your email has NOT been sent.";
+                    await workflowSpeak("Your email has not been sent because I did not hear a clear Yes or No.");
+                    return;
+                }
+                continue;
+            }
+
+            const answer = normalizeVoiceAnswer(rawAnswer);
+            statusElement.textContent = "Recognized answer: " + rawAnswer;
+            console.log("Email confirmation recognized:", rawAnswer);
+            console.log("Normalized confirmation:", answer);
+
+            if (isNoAnswer(answer)) {
+                emailConfirmedForSending = false;
+                emailSubmissionStarted = false;
+                statusElement.textContent = "Sending cancelled. Your message remains on the page.";
+                await workflowSpeak("Okay. I will not send the email.");
+                return;
+            }
+
+            if (isYesAnswer(answer)) {
+                confirmationReceived = true;
+                break;
+            }
+
+            statusElement.textContent =
+                'I heard "' + rawAnswer + '". Please say Yes to send or No to cancel. Attempt ' +
+                confirmationAttempts + " of " + maxConfirmationAttempts + ".";
+        }
+
+        if (workflowCancelled || !confirmationReceived) {
+            emailConfirmedForSending = false;
+            emailSubmissionStarted = false;
+            if (!workflowCancelled) {
+                statusElement.textContent =
+                    "Email not sent because a clear Yes confirmation was not received.";
+                await workflowSpeak("Your email has not been sent.");
+            }
+            return;
+        }
+
+        // STEP 7: RECHECK THE DETAILS BEFORE SENDING.
+
+        const currentRecipient =
+
+            recipientInput.value.trim().toLowerCase();
+
+        if (!isValidEmailFormat(currentRecipient)) {
+
+            throw new Error(
+
+                "The recipient email address is invalid."
+
+            );
+
+        }
+
+        if (currentRecipient !== verifiedRecipient) {
+
+            throw new Error(
+
+                "The recipient changed. Verify the new email address."
+
+            );
+
+        }
+
+        if (!subjectInput.value.trim()) {
+
+            throw new Error("The email subject is missing.");
+
+        }
+
+        if (!bodyElement.value.trim()) {
+
+            throw new Error("The email message is missing.");
+
+        }
+
+        if (emailSubmissionStarted) {
+
+            statusElement.textContent =
+
+                "Email submission has already started.";
+
+            return;
+
+        }
+
+        // STEP 8: SUBMIT ONCE, ONLY AFTER A RECOGNIZED YES.
+
+        emailConfirmedForSending = true;
+
+        emailSubmissionStarted = true;
+
+        statusElement.textContent =
+
+            "Confirmation received. Sending email to " +
+
+            currentRecipient + "...";
+
+        await workflowSpeak("Yes confirmed. Sending your email now.");
+
+        if (workflowCancelled) {
+
+            emailConfirmedForSending = false;
+
+            emailSubmissionStarted = false;
+
+            return;
+
+        }
+
+        // Do not allow the submit event to run twice.
+
+        formElement.requestSubmit(sendButton);
+
+    } catch (error) {
+
+        if (!workflowCancelled) {
+
+            console.error("Voice email workflow error:", error);
+
+            statusElement.textContent =
+
+                "❌ Voice workflow error: " + error.message;
+
+            await workflowSpeak(
+
+                "The voice workflow encountered an error. " +
+
+                "Please check the message displayed on the screen."
+
+            );
+
+        }
+
+    } finally {
+
+        workflowBusy = false;
+
+        workflowActive = false;
+
+        workflowButton.disabled = false;
+
+    }
+
+}
+
+workflowButton.addEventListener("click", startEmailWorkflow);
+
+
+
+// ---------------------------------------------
+
+// STOP VOICE WORKFLOW
+
+// ---------------------------------------------
+
+function stopVoice() {
+
+    workflowCancelled = true;
+
+    emailConfirmedForSending = false;
+
+    emailSubmissionStarted = false;
+
+    stopSpeechPlayback();
+
+    if (recognition) {
+
+        try {
+
+            recognition.abort();
+
+        } catch (error) {
+
+            console.error("Could not stop recognition:", error);
+
+        }
+
+        recognition = null;
+
+    }
+
+    isListening = false;
+
+    voiceButton.disabled = false;
+
+    readTeluguButton.disabled = false;
+
+    workflowButton.disabled = false;
+
+    statusElement.textContent =
+
+        "Voice recognition and speech playback stopped.";
+
+}
+
+stopButton.addEventListener("click", stopVoice);
+
+
+
+// ---------------------------------------------
+
+// CONNECT MANUAL VOICE BUTTONS
+
+// ---------------------------------------------
+
+voiceButton.addEventListener("click", startTeluguVoice);
+
+readTeluguButton.addEventListener("click", function() {
+
+    speakTelugu().catch(function(error) {
+
+        statusElement.textContent =
+
+            "❌ Telugu audio error: " + error.message;
+
+    });
+
+});
+
+readButton.addEventListener("click", speakEnglish);
+
+
+
+// ---------------------------------------------
+
+// ATTACHMENT PREVIEW
+
+// ---------------------------------------------
+
+function closeAttachmentPreview() {
+
+    previewModal.classList.remove("open");
+
+    previewDisplay.replaceChildren();
+
+    if (previewObjectUrl) {
+
+        URL.revokeObjectURL(previewObjectUrl);
+
+        previewObjectUrl = null;
+
+    }
+
+}
+
+function openAttachmentPreview(file) {
+
+    closeAttachmentPreview();
+
+    previewTitle.textContent = file.name;
+
+    previewObjectUrl = URL.createObjectURL(file);
+
+    if (file.type.startsWith("image/")) {
+
+        const image = document.createElement("img");
+
+        image.src = previewObjectUrl;
+
+        image.alt = file.name;
+
+        image.className = "preview-display";
+
+        previewDisplay.appendChild(image);
+
+    } else if (
+
+        file.type === "application/pdf" ||
+
+        file.name.toLowerCase().endsWith(".pdf")
+
+    ) {
+
+        const frame = document.createElement("iframe");
+
+        frame.src = previewObjectUrl;
+
+        frame.title = "PDF preview: " + file.name;
+
+        frame.className = "preview-display";
+
+        previewDisplay.appendChild(frame);
+
+    } else {
+
+        const message = document.createElement("p");
+
+        message.className = "preview-message";
+
+        message.textContent =
+
+            "Preview is available for images and PDF files only.";
+
+        previewDisplay.appendChild(message);
+
+    }
+
+    previewModal.classList.add("open");
+
+    closePreviewButton.focus();
+
+}
+
+attachmentInput.addEventListener("change", function() {
+
+    selectedFilesElement.replaceChildren();
+
+    Array.from(attachmentInput.files).forEach(function(file) {
+
+        const link = document.createElement("button");
+
+        link.type = "button";
+
+        link.className = "selected-file";
+
+        link.textContent = file.name;
+
+        link.title = "Click to preview " + file.name;
+
+        link.addEventListener("click", function() {
+
+            openAttachmentPreview(file);
+
+        });
+
+        selectedFilesElement.appendChild(link);
+
+    });
+
+});
+
+closePreviewButton.addEventListener("click", closeAttachmentPreview);
+
+previewModal.addEventListener("click", function(event) {
+
+    if (event.target === previewModal) {
+
+        closeAttachmentPreview();
+
+    }
+
+});
+
+document.addEventListener("keydown", function(event) {
+
+    if (
+
+        event.key === "Escape" &&
+
+        previewModal.classList.contains("open")
+
+    ) {
+
+        closeAttachmentPreview();
+
+    }
+
+});
+
+
+
+// ---------------------------------------------
+
+// FORM VALIDATION AND SEND CONFIRMATION
+
+// ---------------------------------------------
+
+formElement.addEventListener("submit", function(event) {
+
+    const recipient = recipientInput.value.trim().toLowerCase();
+
+    const subject = subjectInput.value.trim();
+
+    const body = bodyElement.value.trim();
+
+    if (!isValidEmailFormat(recipient)) {
+
+        event.preventDefault();
+
+        verifiedRecipient = "";
+
+        emailConfirmedForSending = false;
+
+        emailSubmissionStarted = false;
+
+        emailVerifyStatus.textContent =
+
+            "Please enter a correctly formatted email address.";
+
+        emailVerifyStatus.classList.remove("success");
+
+        emailVerifyStatus.classList.add("error");
+
+        recipientInput.focus();
+
+        return;
+
+    }
+
+    if (!subject) {
+
+        event.preventDefault();
+
+        emailSubmissionStarted = false;
+
+        statusElement.textContent =
+
+            "Please enter an email subject.";
+
+        subjectInput.focus();
+
+        return;
+
+    }
+
+    if (!body) {
+
+        event.preventDefault();
+
+        emailSubmissionStarted = false;
+
+        statusElement.textContent =
+
+            "Please enter an email message.";
+
+        bodyElement.focus();
+
+        return;
+
+    }
+
+        if (workflowActive && !emailConfirmedForSending) {
+        event.preventDefault();
+        emailSubmissionStarted = false;
+        statusElement.textContent =
+            "Please say Yes in the voice workflow before sending. No email was sent.";
+        return;
+    }
+
+    if (
+
+        !verifiedRecipient ||
+
+        recipient !== verifiedRecipient
+
+    ) {
+
+        event.preventDefault();
+
+        emailConfirmedForSending = false;
+
+        emailSubmissionStarted = false;
+
+        statusElement.textContent =
+
+            "Please verify the recipient email address before sending.";
+
+        return;
+
+    }
+
+    // The confirmation was already accepted by the voice workflow.
+
+    stopSpeechPlayback();
+
+    sendButton.disabled = true;
+
+    sendButton.textContent = "Sending Email...";
+
+});
+
+
+
+// ---------------------------------------------
+
+// INITIALIZE
+
+// ---------------------------------------------
+
+loadVoiceAssistantDetails();
+
+</script>
+
+</body>
+
+</html>

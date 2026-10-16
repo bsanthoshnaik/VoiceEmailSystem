@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Read Emails - Voice Email Assistant</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f3f3ff;
+            margin: 0;
+            padding: 30px;
+            color: #242424;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        h1 {
+            color: #5145e5;
+        }
+
+        .subtitle {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .account-box {
+            background: #fff;
+            padding: 18px 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            overflow-wrap: anywhere;
+        }
+
+        .account-label {
+            color: #555;
+            font-size: 13px;
+            margin: 0 0 6px;
+        }
+
+        .account-email {
+            color: #3930b8;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .email {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            overflow-wrap: anywhere;
+        }
+
+        .sender {
+            color: #5145e5;
+            font-weight: bold;
+            overflow-wrap: anywhere;
+        }
+
+        .date {
+            color: #777;
+            font-size: 13px;
+        }
+
+        .preview {
+            line-height: 1.6;
+            overflow-wrap: anywhere;
+            white-space: pre-wrap;
+        }
+
+        button,
+        .back {
+            display: inline-block;
+            background: #5145e5;
+            color: white;
+            border: none;
+            padding: 11px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            margin: 5px 5px 5px 0;
+            font-size: 14px;
+        }
+
+        button:hover,
+        .back:hover {
+            background: #3930b8;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .error {
+            background: #ffe5e5;
+            color: #a00000;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow-wrap: anywhere;
+        }
+
+        .status {
+            background: #e8e7ff;
+            color: #3930b8;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 15px 0;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
+        .email.speaking {
+            border: 2px solid #5145e5;
+        }
+
+        details {
+            margin-top: 12px;
+        }
+
+        summary {
+            cursor: pointer;
+            color: #5145e5;
+            font-weight: bold;
+        }
+
+        .empty-message {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            line-height: 1.6;
+        }
+
+        .button-group {
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 15px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .button-group button {
+                width: 100%;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>📩 Your Gmail Inbox</h1>
+
+    <p class="subtitle">
+        View and listen to the latest emails from the Gmail account
+        assigned to your website login.
+    </p>
+
+    <a class="back" href="{% url 'dashboard' %}">
+        ← Back to Dashboard
+    </a>
+
+    <!-- Show the assigned Gmail address, without an account selector -->
+    {% if selected_gmail_email %}
+        <div class="account-box">
+            <p class="account-label">Gmail account assigned to your login</p>
+            <p class="account-email">{{ selected_gmail_email }}</p>
+        </div>
+    {% endif %}
+
+    <!-- Email reading controls -->
+    <div class="button-group">
+
+        <button
+            type="button"
+            id="readButton"
+            onclick="readAllEmails()"
+        >
+            🔊 Read My Emails
+        </button>
+
+        <button type="button" onclick="pauseReading()">
+            ⏸ Pause
+        </button>
+
+        <button type="button" onclick="resumeReading()">
+            ▶ Resume
+        </button>
+
+        <button type="button" onclick="stopReading()">
+            ⏹ Stop Reading
+        </button>
+
+    </div>
+
+    <div
+        id="speechStatus"
+        class="status"
+        role="status"
+        aria-live="polite"
+    >
+        Ready. Click "Read My Emails" to hear your messages.
+    </div>
+
+    <!-- Display errors -->
+    {% if error %}
+
+        <div class="error">
+            <strong>Could not retrieve emails.</strong>
+            <p>{{ error }}</p>
+        </div>
+
+    {% elif emails %}
+
+        <div id="emailList">
+
+            {% for email in emails %}
+
+                <div class="email">
+
+                    <p class="sender">
+                        From: {{ email.sender|default:"Unknown sender" }}
+                    </p>
+
+                    <h3>
+                        {{ email.subject|default:"No subject" }}
+                    </h3>
+
+                    <p class="date">
+                        {{ email.date|default:"Date unavailable" }}
+                    </p>
+
+                    <p class="preview">
+                        {{ email.snippet|default:"No preview available." }}
+                    </p>
+
+                    {% if email.body %}
+
+                        <details>
+                            <summary>View full email content</summary>
+
+                            <p class="preview">{{ email.body }}</p>
+                        </details>
+
+                    {% endif %}
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <p class="empty-message">
+            No emails were found in the Gmail inbox assigned to your login.
+        </p>
+
+    {% endif %}
+
+</div>
+
+<script>
+    let emailMessages = [];
+    let currentEmailIndex = 0;
+    let readingStopped = true;
+    let currentUtterance = null;
+
+    const statusElement = document.getElementById("speechStatus");
+
+    function setStatus(message) {
+        statusElement.textContent = message;
+    }
+
+    function clearSpeakingHighlight() {
+        document.querySelectorAll(".email.speaking").forEach(card => {
+            card.classList.remove("speaking");
+        });
+    }
+
+    function getEmailMessages() {
+        const emailCards = document.querySelectorAll("#emailList .email");
+
+        return Array.from(emailCards).map((card, index) => {
+            const sender =
+                card.querySelector(".sender")?.innerText || "Unknown sender";
+
+            const subject =
+                card.querySelector("h3")?.innerText || "No subject";
+
+            const date =
+                card.querySelector(".date")?.innerText || "";
+
+            const preview =
+                card.querySelector(":scope > .preview")?.innerText || "";
+
+            const fullBody =
+                card.querySelector("details .preview")?.innerText || "";
+
+            // Use the full body when available; otherwise use the preview.
+            const messageBody = fullBody.trim() || preview.trim();
+
+            return {
+                card: card,
+                text:
+                    `Email ${index + 1}. ` +
+                    `From: ${sender}. ` +
+                    `Subject: ${subject}. ` +
+                    `${date}. ` +
+                    `Message: ${messageBody}`
+            };
+        });
+    }
+
+    function readAllEmails() {
+        if (
+            !("speechSynthesis" in window) ||
+            !("SpeechSynthesisUtterance" in window)
+        ) {
+            setStatus(
+                "Your browser does not support speech reading. " +
+                "Please try an updated version of Chrome or Edge."
+            );
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+        clearSpeakingHighlight();
+
+        emailMessages = getEmailMessages();
+
+        if (emailMessages.length === 0) {
+            readingStopped = true;
+            setStatus("There are no emails available to read.");
+            return;
+        }
+
+        currentEmailIndex = 0;
+        readingStopped = false;
+
+        setStatus(`Starting to read ${emailMessages.length} emails.`);
+
+        speakNextEmail();
+    }
+
+    function speakNextEmail() {
+        if (readingStopped) {
+            return;
+        }
+
+        if (currentEmailIndex >= emailMessages.length) {
+            readingStopped = true;
+            currentUtterance = null;
+            clearSpeakingHighlight();
+
+            setStatus("Finished reading all emails.");
+            return;
+        }
+
+        const currentEmail = emailMessages[currentEmailIndex];
+
+        clearSpeakingHighlight();
+        currentEmail.card.classList.add("speaking");
+
+        currentEmail.card.scrollIntoView({
+            behavior: "smooth",
+            block: "center"
+        });
+
+        setStatus(
+            `Reading email ${currentEmailIndex + 1} of ` +
+            `${emailMessages.length}.`
+        );
+
+        currentUtterance = new SpeechSynthesisUtterance(
+            currentEmail.text
+        );
+
+        currentUtterance.lang = "en-IN";
+        currentUtterance.rate = 0.9;
+        currentUtterance.pitch = 1;
+
+        currentUtterance.onend = function () {
+            if (readingStopped) {
+                return;
+            }
+
+            currentEmailIndex++;
+            speakNextEmail();
+        };
+
+        currentUtterance.onerror = function (event) {
+            if (readingStopped) {
+                return;
+            }
+
+            readingStopped = true;
+            currentUtterance = null;
+            clearSpeakingHighlight();
+
+            setStatus(
+                "Speech error: " + event.error +
+                ". Try clicking Read My Emails again."
+            );
+        };
+
+        window.speechSynthesis.speak(currentUtterance);
+    }
+
+    function pauseReading() {
+        if (!("speechSynthesis" in window)) {
+            setStatus("Speech reading is not supported in this browser.");
+            return;
+        }
+
+        if (
+            window.speechSynthesis.speaking &&
+            !window.speechSynthesis.paused
+        ) {
+            window.speechSynthesis.pause();
+            setStatus("Reading paused. Click Resume to continue.");
+        } else {
+            setStatus("There is no active reading to pause.");
+        }
+    }
+
+    function resumeReading() {
+        if (!("speechSynthesis" in window)) {
+            setStatus("Speech reading is not supported in this browser.");
+            return;
+        }
+
+        if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+            setStatus("Resuming email reading.");
+        } else {
+            setStatus("Email reading is not paused.");
+        }
+    }
+
+    function stopReading() {
+        readingStopped = true;
+        currentUtterance = null;
+
+        if ("speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+        }
+
+        clearSpeakingHighlight();
+
+        setStatus("Email reading stopped.");
+    }
+
+    // Stop speech when leaving this page.
+    window.addEventListener("pagehide", function () {
+        if ("speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+        }
+    });
+</script>
+
+</body>
+</html>
