@@ -326,6 +326,18 @@
 
         .preview-message { padding: 20px; }
 
+        .login-prompt-panel { height: auto; max-height: 85vh; }
+        #login-required-modal[hidden] { display: none !important; }
+        .login-prompt-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .login-prompt-actions .back,
+        .login-prompt-actions button { margin-top: 8px; }
+
+
         .message {
 
             padding: 12px;
@@ -692,6 +704,25 @@
 
 </div>
 
+<!-- Login prompt shown when a visitor tries to send without logging in. -->
+<div id="login-required-modal" class="preview-modal" role="dialog"
+     aria-modal="true" aria-labelledby="login-required-title" hidden>
+    <div class="preview-panel login-prompt-panel">
+        <div class="preview-header">
+            <strong id="login-required-title">🔐 Login required</strong>
+            <button type="button" id="close-login-prompt-btn">✕ Close</button>
+        </div>
+        <div class="preview-message">
+            <p>Please log in before sending your email.</p>
+            <p class="hint">Your recipient, subject, and message will be kept in this browser tab while you log in. You will need to select attachments again after logging in.</p>
+            <div class="login-prompt-actions">
+                <a id="login-to-send-link" class="back" href="{% url 'login' %}?next={% url 'emailassistant:compose_email' %}">Login to continue</a>
+                <button type="button" class="secondary-button" id="cancel-login-prompt-btn">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 
 "use strict";
@@ -763,8 +794,73 @@ const previewDisplay = document.getElementById("preview-display");
 const previewTitle = document.getElementById("preview-title");
 
 const closePreviewButton = document.getElementById("close-preview-btn");
+const loginRequiredModal = document.getElementById("login-required-modal");
+const closeLoginPromptButton = document.getElementById("close-login-prompt-btn");
+const cancelLoginPromptButton = document.getElementById("cancel-login-prompt-btn");
+const loginToSendLink = document.getElementById("login-to-send-link");
+const userIsAuthenticated = {{ user.is_authenticated|yesno:"true,false" }};
+const composeDraftStorageKey = "voiceEmailComposeDraft";
 
 
+
+// ---------------------------------------------
+
+// LOGIN PROMPT AND DRAFT RESTORE
+// ---------------------------------------------
+
+function saveComposeDraft() {
+    try {
+        const draft = {
+            recipient: recipientInput.value,
+            subject: subjectInput.value,
+            body: bodyElement.value
+        };
+        sessionStorage.setItem(composeDraftStorageKey, JSON.stringify(draft));
+    } catch (error) {
+        console.warn("Could not save the email draft in this tab:", error);
+    }
+}
+
+function restoreComposeDraft() {
+    try {
+        const saved = sessionStorage.getItem(composeDraftStorageKey);
+        if (!saved) return;
+        const draft = JSON.parse(saved);
+        if (draft && typeof draft === "object") {
+            if (typeof draft.recipient === "string") recipientInput.value = draft.recipient;
+            if (typeof draft.subject === "string") subjectInput.value = draft.subject;
+            if (typeof draft.body === "string") bodyElement.value = draft.body;
+            statusElement.textContent = "Your saved draft was restored. Verify the recipient again before sending.";
+        }
+        sessionStorage.removeItem(composeDraftStorageKey);
+    } catch (error) {
+        console.warn("Could not restore the email draft:", error);
+    }
+}
+
+function openLoginRequiredPrompt() {
+    saveComposeDraft();
+    loginRequiredModal.hidden = false;
+    loginRequiredModal.classList.add("open");
+    closeLoginPromptButton.focus();
+}
+
+function closeLoginRequiredPrompt() {
+    loginRequiredModal.classList.remove("open");
+    loginRequiredModal.hidden = true;
+}
+
+closeLoginPromptButton.addEventListener("click", closeLoginRequiredPrompt);
+cancelLoginPromptButton.addEventListener("click", closeLoginRequiredPrompt);
+loginRequiredModal.addEventListener("click", function(event) {
+    if (event.target === loginRequiredModal) closeLoginRequiredPrompt();
+});
+document.addEventListener("keydown", function(event) {
+    if (event.key === "Escape" && !loginRequiredModal.hidden) {
+        closeLoginRequiredPrompt();
+    }
+});
+loginToSendLink.addEventListener("click", saveComposeDraft);
 
 // ---------------------------------------------
 
@@ -1294,28 +1390,21 @@ function normalizeVoiceAnswer(value) {
 }
 
 function isYesAnswer(value) {
-    const answer = normalizeVoiceAnswer(value)
-        .replace(/\b(yes|yeah|yep|yup)\s+\1\b/g, "$1");
 
-    // A clear cancellation always wins; never treat a negative sentence as Yes.
-    if (isNoAnswer(answer)) return false;
+    const answer = normalizeVoiceAnswer(value);
 
-    // Browsers sometimes return extra words or duplicate the recognized word
-    // (for example, "yes yes" or "yes, send it"). Accept a clear affirmative.
-    if (/^(yes|yeah|yep|yup|sure|correct|confirm|confirmed|okay|ok)( please)?$/.test(answer)) {
-        return true;
-    }
-    if (/^(yes|yeah|yep|yup)\b/.test(answer)) return true;
-    if (/^(send|send it|send email|send the email|please send|go ahead)( please)?$/.test(answer)) {
-        return true;
-    }
-    return false;
+    // Accept common natural spoken confirmations.
+
+    return /^(yes|yeah|yep|yup|sure|correct|confirm|confirmed|okay|ok|send|send it|yes send|yes send it|yes please|yes i am sure|yes i want to send|yes go ahead|go ahead|please send|send email|send the email)( please)?$/.test(answer);
+
 }
 
 function isNoAnswer(value) {
+
     const answer = normalizeVoiceAnswer(value);
-    return /\b(no|nope|nah|cancel|stop|dont|don't|do not|not send)\b/.test(answer) ||
-        /^(no|nope|nah|cancel|cancel it|do not send|dont send|don't send|no do not send|no dont send|no don't send|no cancel|stop|do not send it|dont send it|don't send it)( please)?$/.test(answer);
+
+    return /^(no|nope|nah|cancel|cancel it|do not send|dont send|don't send|no do not send|no dont send|no don't send|no cancel|stop|do not send it|dont send it|don't send it)( please)?$/.test(answer);
+
 }
 
 
@@ -2206,7 +2295,9 @@ async function startEmailWorkflow() {
 
                     await workflowSpeak(
 
-                        "The email address format is valid."
+                        "The email address format is valid. " +
+
+                        "What is the subject of your email?"
 
                     );
 
@@ -2338,89 +2429,77 @@ async function startEmailWorkflow() {
 
         if (workflowCancelled) return;
 
-        // STEP 6: ASK ONCE, THEN LISTEN FOR YES OR NO.
-        // On retries, do not repeat the long recipient question. A clear Yes
-        // immediately proceeds; No cancels; unclear audio gets at most 3 tries.
+        // STEP 6: CONFIRM WITH THE RECIPIENT EMAIL SHOWN.
+
         let confirmationReceived = false;
-        let confirmationAttempts = 0;
-        const maxConfirmationAttempts = 3;
-        const confirmationQuestion =
-            "Are you sure you want to send the email to " +
-            recipient +
-            "? Please say Yes to send or No to cancel.";
 
-        while (
-            !workflowCancelled &&
-            !confirmationReceived &&
-            confirmationAttempts < maxConfirmationAttempts
-        ) {
-            confirmationAttempts++;
-            let rawAnswer = "";
+        while (!workflowCancelled && !confirmationReceived) {
 
-            try {
-                if (confirmationAttempts === 1) {
-                    statusElement.textContent = confirmationQuestion;
-                    await workflowSpeak(confirmationQuestion, "en-IN");
-                } else {
-                    statusElement.textContent =
-                        "Please say Yes to send or No to cancel. Attempt " +
-                        confirmationAttempts + " of " + maxConfirmationAttempts + ".";
-                    await workflowSpeak("Please say Yes to send or No to cancel.", "en-IN");
-                }
-                if (workflowCancelled) return;
-                // Give the browser a short moment to stop its own spoken audio
-                // before opening the microphone, avoiding TTS being heard as input.
-                await new Promise(resolve => setTimeout(resolve, 350));
-                if (workflowCancelled) return;
-                statusElement.textContent = "🎤 Listening now. Say Yes to send or No to cancel.";
-                rawAnswer = await listenForAnswer("en-IN", false);
-            } catch (error) {
-                if (workflowCancelled) return;
-                console.warn("Voice confirmation attempt failed:", error);
-                if (confirmationAttempts >= maxConfirmationAttempts) {
-                    emailConfirmedForSending = false;
-                    emailSubmissionStarted = false;
-                    statusElement.textContent =
-                        "❌ I could not hear a clear Yes or No after 3 attempts. Your email has NOT been sent.";
-                    await workflowSpeak("Your email has not been sent because I did not hear a clear Yes or No.");
-                    return;
-                }
-                continue;
-            }
+            const question =
+
+                "Are you sure you want to send the email to " +
+
+                recipient + "? Please say Yes to send or No to cancel.";
+
+            const rawAnswer = await askVoiceQuestion(question);
 
             const answer = normalizeVoiceAnswer(rawAnswer);
-            statusElement.textContent = "Recognized answer: " + rawAnswer;
+
+            // Show the words recognized by the browser for debugging.
+
+            statusElement.textContent =
+
+                "Recognized answer: " + rawAnswer;
+
             console.log("Email confirmation recognized:", rawAnswer);
+
             console.log("Normalized confirmation:", answer);
 
             if (isNoAnswer(answer)) {
+
                 emailConfirmedForSending = false;
+
                 emailSubmissionStarted = false;
-                statusElement.textContent = "Sending cancelled. Your message remains on the page.";
-                await workflowSpeak("Okay. I will not send the email.");
+
+                statusElement.textContent =
+
+                    "Sending cancelled. Your message remains on the page.";
+
+                await workflowSpeak(
+
+                    "Okay. I will not send the email."
+
+                );
+
                 return;
+
             }
 
             if (isYesAnswer(answer)) {
+
                 confirmationReceived = true;
+
                 break;
+
             }
 
             statusElement.textContent =
-                'I heard "' + rawAnswer + '". Please say Yes to send or No to cancel. Attempt ' +
-                confirmationAttempts + " of " + maxConfirmationAttempts + ".";
+
+                'I heard "' + rawAnswer +
+
+                '". Please say Yes to send or No to cancel.';
+
+            await workflowSpeak(
+
+                "I did not recognize a clear Yes or No. " +
+
+                "Please say Yes to send or No to cancel."
+
+            );
+
         }
 
-        if (workflowCancelled || !confirmationReceived) {
-            emailConfirmedForSending = false;
-            emailSubmissionStarted = false;
-            if (!workflowCancelled) {
-                statusElement.textContent =
-                    "Email not sent because a clear Yes confirmation was not received.";
-                await workflowSpeak("Your email has not been sent.");
-            }
-            return;
-        }
+        if (workflowCancelled || !confirmationReceived) return;
 
         // STEP 7: RECHECK THE DETAILS BEFORE SENDING.
 
@@ -2754,6 +2833,14 @@ document.addEventListener("keydown", function(event) {
 
 formElement.addEventListener("submit", function(event) {
 
+    // Let visitors compose, but require authentication before sending.
+    // The compose_email view must enforce this on the server too.
+    if (!userIsAuthenticated) {
+        event.preventDefault();
+        openLoginRequiredPrompt();
+        return;
+    }
+
     const recipient = recipientInput.value.trim().toLowerCase();
 
     const subject = subjectInput.value.trim();
@@ -2816,12 +2903,18 @@ formElement.addEventListener("submit", function(event) {
 
     }
 
-        if (workflowActive && !emailConfirmedForSending) {
+    if (!emailConfirmedForSending) {
+
         event.preventDefault();
+
         emailSubmissionStarted = false;
+
         statusElement.textContent =
-            "Please say Yes in the voice workflow before sending. No email was sent.";
+
+            "Please confirm Yes in the voice workflow before sending.";
+
         return;
+
     }
 
     if (
@@ -2865,6 +2958,7 @@ formElement.addEventListener("submit", function(event) {
 // ---------------------------------------------
 
 loadVoiceAssistantDetails();
+restoreComposeDraft();
 
 </script>
 

@@ -63,7 +63,7 @@ GMAIL_USER_MAPPING = {
 
 
 def get_configured_gmail_account_ids():
-    """Return the IDs of Gmail accounts configured in gmail_service.py."""
+    """Return IDs of Gmail accounts configured in gmail_service.py."""
 
     configured_accounts = get_available_gmail_accounts()
 
@@ -155,9 +155,13 @@ def get_gmail_account_context(request):
 # DASHBOARD
 # ==================================================
 
-@login_required
 def dashboard(request):
-    """Display the dashboard and Gmail connection status."""
+    """
+    Display the dashboard without requiring a website login.
+
+    Gmail account details are loaded only when the configured
+    Gmail account is connected.
+    """
 
     account_id = get_selected_gmail_account(request)
 
@@ -683,7 +687,6 @@ def correct_grammar(request):
 # COMPOSE AND SEND EMAIL
 # ==================================================
 
-@login_required
 def compose_email(request):
     """Send an email using the Gmail account assigned to the user."""
 
@@ -1082,11 +1085,7 @@ def telugu_audio(request):
 
 @login_required
 def read_emails(request):
-    """
-    Retrieve emails directly from the selected Gmail account.
-
-    The old gmail_inbox_verified session requirement is removed.
-    """
+    """Retrieve emails from the selected, configured Gmail account."""
 
     account_id = get_selected_gmail_account(request)
 
@@ -1097,7 +1096,6 @@ def read_emails(request):
         "selected_account": account_id,
     }
 
-    # Ensure that a Gmail account is configured.
     if not account_id:
         context["error"] = (
             "No Gmail account is configured for your login. "
@@ -1112,7 +1110,6 @@ def read_emails(request):
         )
 
     try:
-        # Check Gmail authorization.
         if not is_gmail_connected(account_id):
             context["error"] = (
                 "The selected Gmail account is not connected. "
@@ -1125,7 +1122,6 @@ def read_emails(request):
                 context,
             )
 
-        # Retrieve the selected Gmail address.
         profile = get_gmail_profile(account_id=account_id) or {}
 
         context["selected_gmail_email"] = profile.get(
@@ -1133,7 +1129,6 @@ def read_emails(request):
             "",
         )
 
-        # Fetch messages from Gmail.
         emails = get_latest_emails(
             max_results=10,
             account_id=account_id,
@@ -1161,8 +1156,6 @@ def read_emails(request):
                 account_id,
             )
 
-            context["emails"] = []
-
             context["error"] = (
                 "Gmail is connected, but no messages were returned. "
                 "Check the Gmail inbox query in gmail_service.py."
@@ -1180,7 +1173,7 @@ def read_emails(request):
         context["error"] = (
             "Unable to retrieve emails from Gmail. "
             "Check Gmail authorization, API permissions, and the "
-            "server terminal for the detailed error."
+            "server logs for details."
         )
 
     return render(
