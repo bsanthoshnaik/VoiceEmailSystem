@@ -8,11 +8,6 @@ urlpatterns = [
 
     path("account/", views.account, name="account"),
 
-    path(
-        "verify-account-password/",
-        views.verify_account_password,
-        name="verify_account_password",
-    ),
 
     path(
         "select-gmail-account/",
@@ -43,11 +38,7 @@ urlpatterns = [
         views.correct_grammar,
         name="correct_grammar",
     ),
-    path(
-    "verify-inbox-password/",
-    views.verify_inbox_password,
-    name="verify_inbox_password",
-),
+ 
 
     # Separate route to avoid conflicting with config/urls.py logout
     path("email-logout/", views.email_logout, name="email_logout"),

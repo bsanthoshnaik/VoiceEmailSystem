@@ -17,5 +17,5 @@ urlpatterns = [
 
     # Load all emailassistant application URLs
     path("", include("emailassistant.urls")),
-    path("", include("emailassistant.urls")),
+
 ]

@@ -1,5 +1,4 @@
 import asyncio
-import hmac
 import json
 import logging
 import os
@@ -10,13 +9,12 @@ import edge_tts
 import requests
 
 from django.contrib import messages
-from django.contrib.auth import authenticate, logout
+from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render, redirect
-from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from .gmail_service import (
@@ -80,7 +78,7 @@ def get_configured_gmail_account_ids():
 
 
 def get_selected_gmail_account(request):
-    """Select a configured Gmail account."""
+    """Select a configured Gmail account for the current user."""
 
     if request.user.is_authenticated:
         username = request.user.get_username().strip().lower()
@@ -108,10 +106,12 @@ def get_selected_gmail_account(request):
                 account_id,
                 valid_account_ids,
             )
+
             request.session.pop("gmail_account_id", None)
             return None
 
         request.session["gmail_account_id"] = account_id
+
         return account_id
 
     except Exception:
@@ -124,112 +124,38 @@ def get_selected_gmail_account(request):
 # ==================================================
 
 def get_gmail_account_context(request):
-    """Return the selected Gmail account ID."""
+    """Return the selected Gmail account and its email address."""
+
+    account_id = get_selected_gmail_account(request)
+    selected_gmail_email = ""
+
+    if account_id:
+        try:
+            if is_gmail_connected(account_id):
+                profile = get_gmail_profile(account_id=account_id) or {}
+
+                selected_gmail_email = profile.get(
+                    "emailAddress",
+                    "",
+                )
+
+        except Exception:
+            logger.exception(
+                "Could not retrieve Gmail profile for account %s.",
+                account_id,
+            )
 
     return {
-        "selected_account": get_selected_gmail_account(request),
-        "selected_gmail_email": "",
+        "selected_account": account_id,
+        "selected_gmail_email": selected_gmail_email,
     }
 
 
 # ==================================================
-# WEBSITE ACCOUNT PASSWORD VERIFICATION
-# ==================================================
-
-@require_POST
-def verify_account_password(request):
-    """Verify the password of the logged-in website user."""
-
-    password = request.POST.get("password", "")
-
-    if not password:
-        return JsonResponse(
-            {
-                "success": False,
-                "message": "Please enter the verification password.",
-            },
-            status=400,
-        )
-
-    if not request.user.is_authenticated:
-        return JsonResponse(
-            {
-                "success": False,
-                "message": "Please log in to verify your account password.",
-            },
-            status=401,
-        )
-
-    user = authenticate(
-        request,
-        username=request.user.get_username(),
-        password=password,
-    )
-
-    if user is None:
-        return JsonResponse(
-            {
-                "success": False,
-                "message": "Incorrect password. Please try again.",
-            },
-            status=400,
-        )
-
-    request.session["account_password_verified"] = True
-
-    return JsonResponse(
-        {
-            "success": True,
-            "message": "Password verified successfully.",
-            "account": {
-                "username": user.get_username(),
-                "email": user.email or "",
-                "first_name": user.first_name or "",
-                "last_name": user.last_name or "",
-                "is_active": user.is_active,
-                "date_joined": (
-                    user.date_joined.strftime("%d-%m-%Y")
-                    if user.date_joined
-                    else ""
-                ),
-            },
-        }
-    )
-
-
-# ==================================================
-# INBOX PASSWORD VERIFICATION
-# ==================================================
-
-@require_POST
-def verify_inbox_password(request):
-    password = request.POST.get("password", "")
-    expected_password = os.environ.get("GMAIL_READ_PASSWORD", "")
-
-    if not expected_password:
-        return JsonResponse({
-            "success": False,
-            "message": "Inbox password is not configured."
-        }, status=503)
-
-    if not hmac.compare_digest(password, expected_password):
-        return JsonResponse({
-            "success": False,
-            "message": "Incorrect inbox password. Please try again."
-        }, status=400)
-
-    request.session["gmail_inbox_verified"] = True
-    request.session.set_expiry(900)
-
-    return JsonResponse({
-        "success": True,
-        "message": "Inbox password verified successfully.",
-        "redirect_url": reverse("emailassistant:read_emails")
-    })
-# ==================================================
 # DASHBOARD
 # ==================================================
 
+@login_required
 def dashboard(request):
     """Display the dashboard and Gmail connection status."""
 
@@ -240,6 +166,8 @@ def dashboard(request):
         "total_messages": 0,
         "total_threads": 0,
         "gmail_error": None,
+        "selected_account": account_id,
+        "selected_gmail_email": "",
     }
 
     if not account_id:
@@ -269,6 +197,11 @@ def dashboard(request):
 
         profile = get_gmail_profile(account_id=account_id) or {}
 
+        context["email_address"] = profile.get("emailAddress", "")
+        context["selected_gmail_email"] = profile.get(
+            "emailAddress",
+            "",
+        )
         context["total_messages"] = profile.get("messagesTotal", 0)
         context["total_threads"] = profile.get("threadsTotal", 0)
 
@@ -294,11 +227,14 @@ def dashboard(request):
 # LOGOUT
 # ==================================================
 
+@login_required
 def email_logout(request):
-    """Clear verification sessions and log out of the website."""
+    """Log out of the website and clear the selected Gmail account."""
 
     request.session.pop("gmail_account_id", None)
     request.session.pop("selected_gmail_account_id", None)
+
+    # Remove obsolete verification flags if they exist.
     request.session.pop("gmail_inbox_verified", None)
     request.session.pop("account_password_verified", None)
 
@@ -828,6 +764,7 @@ def compose_email(request):
 
         if not isinstance(result, dict) or not result.get("id"):
             logger.error("Gmail returned no message ID: %r", result)
+
             messages.error(
                 request,
                 (
@@ -975,6 +912,7 @@ def translate_telugu(request):
                 "Translation API returned status: %r",
                 result.get("responseStatus"),
             )
+
             return JsonResponse(
                 {"error": "Translation failed. Try again."},
                 status=502,
@@ -1005,6 +943,7 @@ def translate_telugu(request):
 
     except requests.Timeout:
         logger.warning("Translation API request timed out.")
+
         return JsonResponse(
             {"error": "Translation timed out. Try again."},
             status=504,
@@ -1012,6 +951,7 @@ def translate_telugu(request):
 
     except requests.RequestException:
         logger.exception("Translation API request failed.")
+
         return JsonResponse(
             {"error": "Translation service is unavailable."},
             status=502,
@@ -1019,6 +959,7 @@ def translate_telugu(request):
 
     except (ValueError, TypeError, AttributeError):
         logger.exception("Invalid translation API response.")
+
         return JsonResponse(
             {
                 "error": (
@@ -1113,6 +1054,7 @@ def telugu_audio(request):
 
     except Exception:
         logger.exception("Telugu audio generation failed.")
+
         return JsonResponse(
             {
                 "error": (
@@ -1138,24 +1080,13 @@ def telugu_audio(request):
 # READ EMAILS FROM GMAIL
 # ==================================================
 
+@login_required
 def read_emails(request):
-    """Show the inbox only after separate inbox-password verification."""
+    """
+    Retrieve emails directly from the selected Gmail account.
 
-    if request.GET.get("verify") == "1":
-        request.session.pop("gmail_inbox_verified", None)
-
-    # Do not retrieve messages before inbox verification.
-    if not request.session.get("gmail_inbox_verified", False):
-        return render(
-            request,
-            "emailassistant/read_emails.html",
-            {
-                "emails": [],
-                "error": None,
-                "selected_gmail_email": "",
-                "require_password": True,
-            },
-        )
+    The old gmail_inbox_verified session requirement is removed.
+    """
 
     account_id = get_selected_gmail_account(request)
 
@@ -1163,14 +1094,17 @@ def read_emails(request):
         "emails": [],
         "error": None,
         "selected_gmail_email": "",
-        "require_password": False,
+        "selected_account": account_id,
     }
 
+    # Ensure that a Gmail account is configured.
     if not account_id:
         context["error"] = (
-            "The Gmail account is not configured. "
-            "Check DEFAULT_GMAIL_ACCOUNT_ID and gmail_service.py."
+            "No Gmail account is configured for your login. "
+            "Check DEFAULT_GMAIL_ACCOUNT_ID and GMAIL_USER_MAPPING "
+            "in views.py, and the configured accounts in gmail_service.py."
         )
+
         return render(
             request,
             "emailassistant/read_emails.html",
@@ -1178,25 +1112,75 @@ def read_emails(request):
         )
 
     try:
+        # Check Gmail authorization.
         if not is_gmail_connected(account_id):
             context["error"] = (
-                "The Gmail account is not connected. "
-                "Check its Google authorization."
+                "The selected Gmail account is not connected. "
+                "Check its Google OAuth authorization."
             )
+
+            return render(
+                request,
+                "emailassistant/read_emails.html",
+                context,
+            )
+
+        # Retrieve the selected Gmail address.
+        profile = get_gmail_profile(account_id=account_id) or {}
+
+        context["selected_gmail_email"] = profile.get(
+            "emailAddress",
+            "",
+        )
+
+        # Fetch messages from Gmail.
+        emails = get_latest_emails(
+            max_results=10,
+            account_id=account_id,
+        )
+
+        if emails is None:
+            emails = []
+
+        if not isinstance(emails, (list, tuple)):
+            logger.error(
+                "get_latest_emails returned unexpected type %s "
+                "for account %s.",
+                type(emails).__name__,
+                account_id,
+            )
+
+            context["error"] = (
+                "Gmail returned an unexpected response. "
+                "Check get_latest_emails() in gmail_service.py."
+            )
+
+        elif not emails:
+            logger.warning(
+                "No emails were returned for Gmail account %s.",
+                account_id,
+            )
+
+            context["emails"] = []
+
+            context["error"] = (
+                "Gmail is connected, but no messages were returned. "
+                "Check the Gmail inbox query in gmail_service.py."
+            )
+
         else:
-            context["emails"] = get_latest_emails(
-                max_results=10,
-                account_id=account_id,
-            )
+            context["emails"] = emails
 
     except Exception:
         logger.exception(
             "Failed to retrieve Gmail messages for account %s.",
             account_id,
         )
+
         context["error"] = (
-            "Unable to retrieve emails. "
-            "Check Gmail authorization and the server logs."
+            "Unable to retrieve emails from Gmail. "
+            "Check Gmail authorization, API permissions, and the "
+            "server terminal for the detailed error."
         )
 
     return render(
@@ -1210,6 +1194,7 @@ def read_emails(request):
 # ACCOUNT PAGE
 # ==================================================
 
+@login_required
 def account(request):
     """Display the configured Gmail account settings."""
 
@@ -1228,6 +1213,7 @@ def account(request):
                 }
                 for account_id, details in configured_accounts.items()
             ]
+
         else:
             available_accounts = [
                 item
@@ -1239,12 +1225,32 @@ def account(request):
         logger.exception("Could not load available Gmail accounts.")
         available_accounts = []
 
+    account_id = get_selected_gmail_account(request)
+    selected_gmail_email = ""
+
+    if account_id:
+        try:
+            if is_gmail_connected(account_id):
+                profile = get_gmail_profile(account_id=account_id) or {}
+
+                selected_gmail_email = profile.get(
+                    "emailAddress",
+                    "",
+                )
+
+        except Exception:
+            logger.exception(
+                "Could not load profile for Gmail account %s.",
+                account_id,
+            )
+
     return render(
         request,
         "emailassistant/account.html",
         {
             "available_accounts": available_accounts,
-            "selected_account": get_selected_gmail_account(request),
+            "selected_account": account_id,
+            "selected_gmail_email": selected_gmail_email,
             "error": None,
         },
     )
@@ -1257,7 +1263,7 @@ def account(request):
 @require_POST
 @login_required
 def select_gmail_account(request):
-    """Select only a Gmail account already configured by the application."""
+    """Select a Gmail account already configured by the application."""
 
     account_id = request.POST.get("account_id", "").strip()
 
@@ -1268,10 +1274,12 @@ def select_gmail_account(request):
         logger.exception(
             "Could not validate the selected Gmail account."
         )
+
         messages.error(
             request,
             "Gmail accounts could not be loaded. Please try again.",
         )
+
         return redirect("emailassistant:account")
 
     if not account_id or account_id not in available_ids:
@@ -1279,12 +1287,13 @@ def select_gmail_account(request):
             request,
             "Please select a valid configured Gmail account.",
         )
+
         return redirect("emailassistant:account")
 
     request.session["selected_gmail_account_id"] = account_id
     request.session["gmail_account_id"] = account_id
 
-    # Require inbox verification again after switching accounts.
+    # No inbox-password verification is required.
     request.session.pop("gmail_inbox_verified", None)
     request.session.pop("account_password_verified", None)
 

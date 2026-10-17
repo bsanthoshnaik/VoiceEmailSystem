@@ -413,53 +413,6 @@
             color: #2855d9;
         }
 
-        .password-box {
-            max-width: 480px;
-            margin: 0 auto 22px;
-            padding: 22px;
-            background: #f7f9fd;
-            border: 1px solid #e2e8f3;
-            border-radius: 14px;
-        }
-
-        .password-box label {
-            display: block;
-            margin: 14px 0 8px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .password-box input {
-            width: 100%;
-            padding: 13px;
-            border: 1px solid #cbd5e5;
-            border-radius: 8px;
-            font-size: 16px;
-        }
-
-        .password-box input:focus {
-            outline: 2px solid #2855d9;
-            border-color: #2855d9;
-        }
-
-        #accountMessage {
-            margin-top: 12px;
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        #accountMessage.error {
-            color: #b42318;
-        }
-
-        #accountMessage.success {
-            color: #14753d;
-        }
-
-        #accountMessage.info {
-            color: #2855d9;
-        }
-
         footer {
             text-align: center;
             padding: 25px 15px;
@@ -510,10 +463,10 @@
             ✉️ Compose Email
         </a>
 
-        <!-- FIXED: Read Emails now points to the Django read_emails URL. -->
-<a href="{% url 'emailassistant:read_emails' %}?verify=1">
-    📥 Read Emails
-</a>
+        <!-- Open inbox directly without the old verification query parameter. -->
+        <a href="{% url 'emailassistant:read_emails' %}">
+            📥 Read Emails
+        </a>
 
         <button
             id="dashboardButton"
@@ -566,7 +519,7 @@
                 <h3>My Account</h3>
 
                 {% if request.user.is_authenticated %}
-                <p>Verify your password to view your account details.</p>
+                <p>Your application account details.</p>
                 {% else %}
                 <p>You are not logged in with a Django user account.</p>
                 {% endif %}
@@ -575,74 +528,44 @@
 
         {% if request.user.is_authenticated %}
 
-        <div id="passwordSection" class="password-box">
-            <h3>🔐 Verify Your Password</h3>
-
-            <p class="subtext">
-                Enter your Django account password to view your account details.
-            </p>
-
-            <form id="accountPasswordForm">
-                {% csrf_token %}
-
-                <label for="accountPassword">Account password</label>
-
-                <input
-                    type="password"
-                    id="accountPassword"
-                    name="password"
-                    autocomplete="current-password"
-                    required
-                    placeholder="Enter your account password">
-
-                <div class="account-actions">
-                    <button
-                        type="submit"
-                        id="verifyPasswordButton"
-                        class="btn btn-primary">
-                        Verify Password
-                    </button>
-                </div>
-
-                <p
-                    id="accountMessage"
-                    role="status"
-                    aria-live="polite"></p>
-            </form>
-        </div>
-
-        <div id="verifiedAccountDetails" hidden>
+        <div id="accountDetails">
 
             <div class="account-details">
 
                 <div class="detail-item">
                     <span>Django username</span>
-                    <strong id="accountUsername"></strong>
+                    <strong>{{ request.user.username|default:"Not provided" }}</strong>
                 </div>
 
                 <div class="detail-item">
                     <span>Email address</span>
-                    <strong id="accountEmail"></strong>
+                    <strong>{{ request.user.email|default:"Not provided" }}</strong>
                 </div>
 
                 <div class="detail-item">
                     <span>First name</span>
-                    <strong id="accountFirstName"></strong>
+                    <strong>{{ request.user.first_name|default:"Not provided" }}</strong>
                 </div>
 
                 <div class="detail-item">
                     <span>Last name</span>
-                    <strong id="accountLastName"></strong>
+                    <strong>{{ request.user.last_name|default:"Not provided" }}</strong>
                 </div>
 
                 <div class="detail-item">
                     <span>Account status</span>
-                    <strong id="accountActive"></strong>
+                    <strong>
+                        {% if request.user.is_active %}
+                            Active
+                        {% else %}
+                            Inactive
+                        {% endif %}
+                    </strong>
                 </div>
 
                 <div class="detail-item">
                     <span>Date joined</span>
-                    <strong id="accountDateJoined"></strong>
+                    <strong>{{ request.user.date_joined|date:"d M Y"|default:"Not available" }}</strong>
                 </div>
 
                 <div class="detail-item">
@@ -945,18 +868,6 @@
     const dashboardSection = document.getElementById("dashboardSection");
     const backToDashboard = document.getElementById("backToDashboard");
 
-    const passwordForm = document.getElementById("accountPasswordForm");
-    const passwordSection = document.getElementById("passwordSection");
-    const passwordInput = document.getElementById("accountPassword");
-    const verifyButton = document.getElementById("verifyPasswordButton");
-    const accountMessage = document.getElementById("accountMessage");
-
-    const verifiedAccountDetails =
-        document.getElementById("verifiedAccountDetails");
-
-    const verifyPasswordURL =
-        "{% url 'emailassistant:verify_account_password' %}";
-
     function showDashboard() {
         dashboardSection.hidden = false;
         accountPanel.hidden = true;
@@ -985,10 +896,6 @@
             top: 0,
             behavior: "smooth"
         });
-
-        if (passwordInput && passwordSection && !passwordSection.hidden) {
-            passwordInput.focus();
-        }
     }
 
     accountButton.addEventListener("click", function () {
@@ -1003,136 +910,6 @@
 
     if (backToDashboard) {
         backToDashboard.addEventListener("click", showDashboard);
-    }
-
-    // ACCOUNT PASSWORD VERIFICATION
-
-    function showAccountMessage(message, type) {
-        if (!accountMessage) {
-            return;
-        }
-
-        accountMessage.textContent = message;
-        accountMessage.className = type || "";
-    }
-
-    function displayAccountDetails(account) {
-        document.getElementById("accountUsername").textContent =
-            account.username || "Not provided";
-
-        document.getElementById("accountEmail").textContent =
-            account.email || "Not provided";
-
-        document.getElementById("accountFirstName").textContent =
-            account.first_name || "Not provided";
-
-        document.getElementById("accountLastName").textContent =
-            account.last_name || "Not provided";
-
-        document.getElementById("accountActive").textContent =
-            account.is_active ? "Active" : "Inactive";
-
-        document.getElementById("accountDateJoined").textContent =
-            account.date_joined || "Not available";
-
-        verifiedAccountDetails.hidden = false;
-        passwordSection.hidden = true;
-    }
-
-    if (passwordForm) {
-        passwordForm.addEventListener("submit", async function (event) {
-            event.preventDefault();
-
-            const password = passwordInput.value;
-
-            if (!password) {
-                showAccountMessage("Please enter your password.", "error");
-                return;
-            }
-
-            const csrfInput = passwordForm.querySelector(
-                'input[name="csrfmiddlewaretoken"]'
-            );
-
-            if (!csrfInput) {
-                showAccountMessage(
-                    "Security token is missing. Refresh the page and try again.",
-                    "error"
-                );
-                return;
-            }
-
-            verifyButton.disabled = true;
-            verifyButton.textContent = "Verifying...";
-
-            showAccountMessage("Checking your password...", "info");
-
-            try {
-                const response = await fetch(verifyPasswordURL, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/x-www-form-urlencoded",
-                        "X-CSRFToken": csrfInput.value,
-                        "X-Requested-With": "XMLHttpRequest"
-                    },
-                    body: new URLSearchParams({
-                        password: password
-                    }),
-                    credentials: "same-origin"
-                });
-
-                let result;
-
-                try {
-                    result = await response.json();
-                } catch (error) {
-                    throw new Error(
-                        "Unexpected server response. Check your Django logs."
-                    );
-                }
-
-                if (!response.ok || !result.success) {
-                    verifiedAccountDetails.hidden = true;
-
-                    showAccountMessage(
-                        result.message ||
-                            "Incorrect password. Please try again.",
-                        "error"
-                    );
-
-                    passwordInput.value = "";
-                    passwordInput.focus();
-                    return;
-                }
-
-                if (!result.account) {
-                    throw new Error(
-                        "Account details were not returned by the server."
-                    );
-                }
-
-                displayAccountDetails(result.account);
-                passwordInput.value = "";
-
-                showAccountMessage(
-                    "Password verified successfully.",
-                    "success"
-                );
-
-            } catch (error) {
-                console.error("Account verification error:", error);
-
-                showAccountMessage(
-                    error.message ||
-                        "Unable to verify your password. Try again.",
-                    "error"
-                );
-
-            } finally {
-                verifyButton.disabled = false;
-                verifyButton.textContent = "Verify Password";
-            }
-        });
     }
 
     // AVAILABLE COMMANDS TOGGLE
@@ -1166,7 +943,10 @@
     const manualButton = document.getElementById("manualButton");
 
     const composeURL = "{% url 'emailassistant:compose_email' %}";
-const readEmailsURL = "{% url 'emailassistant:read_emails' %}?verify=1";
+
+    // Open the inbox directly; no ?verify=1 parameter.
+    const readEmailsURL = "{% url 'emailassistant:read_emails' %}";
+
     const SpeechRecognitionAPI =
         window.SpeechRecognition ||
         window.webkitSpeechRecognition;
