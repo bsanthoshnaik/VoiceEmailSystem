@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Read Emails - Voice Email Assistant</title>
 
     <style>
@@ -33,9 +32,12 @@
             line-height: 1.6;
         }
 
-        .account-box {
-            background: #fff;
-            padding: 18px 20px;
+        .account-box,
+        .email,
+        .empty-message,
+        .password-box {
+            background: white;
+            padding: 20px;
             margin: 20px 0;
             border-radius: 10px;
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
@@ -45,23 +47,13 @@
         .account-label {
             color: #555;
             font-size: 13px;
-            margin: 0 0 6px;
+            margin-bottom: 6px;
         }
 
         .account-email {
             color: #3930b8;
             font-size: 16px;
             font-weight: bold;
-            margin: 0;
-        }
-
-        .email {
-            background: white;
-            padding: 20px;
-            margin-bottom: 15px;
-            border-radius: 10px;
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
-            overflow-wrap: anywhere;
         }
 
         .sender {
@@ -105,6 +97,16 @@
             cursor: not-allowed;
         }
 
+        input[type="password"] {
+            display: block;
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 16px;
+        }
+
         .error {
             background: #ffe5e5;
             color: #a00000;
@@ -138,18 +140,16 @@
             font-weight: bold;
         }
 
-        .empty-message {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            line-height: 1.6;
-        }
-
         .button-group {
             margin: 15px 0;
             display: flex;
             flex-wrap: wrap;
             gap: 5px;
+        }
+
+        .password-help {
+            color: #555;
+            line-height: 1.6;
         }
 
         @media (max-width: 600px) {
@@ -170,121 +170,259 @@
 </head>
 
 <body>
-
 <div class="container">
 
     <h1>📩 Your Gmail Inbox</h1>
 
     <p class="subtitle">
-        View and listen to the latest emails from the Gmail account
-        assigned to your website login.
+        View and listen to emails from your connected Gmail account.
     </p>
 
-    <a class="back" href="{% url 'dashboard' %}">
+    <a class="back" href="{% url 'emailassistant:dashboard' %}">
         ← Back to Dashboard
     </a>
 
-    <!-- Show the assigned Gmail address, without an account selector -->
     {% if selected_gmail_email %}
         <div class="account-box">
-            <p class="account-label">Gmail account assigned to your login</p>
+            <p class="account-label">Connected Gmail account</p>
             <p class="account-email">{{ selected_gmail_email }}</p>
         </div>
     {% endif %}
 
-    <!-- Email reading controls -->
-    <div class="button-group">
+    {% if require_password %}
 
-        <button
-            type="button"
-            id="readButton"
-            onclick="readAllEmails()"
-        >
-            🔊 Read My Emails
-        </button>
+        <div class="password-box">
+            <h2>🔐 Verify Inbox Password</h2>
 
-        <button type="button" onclick="pauseReading()">
-            ⏸ Pause
-        </button>
+            <p class="password-help">
+                Enter your inbox verification password before opening your emails.
+            </p>
 
-        <button type="button" onclick="resumeReading()">
-            ▶ Resume
-        </button>
-
-        <button type="button" onclick="stopReading()">
-            ⏹ Stop Reading
-        </button>
-
-    </div>
-
-    <div
-        id="speechStatus"
-        class="status"
-        role="status"
-        aria-live="polite"
-    >
-        Ready. Click "Read My Emails" to hear your messages.
-    </div>
-
-    <!-- Display errors -->
-    {% if error %}
-
-        <div class="error">
-            <strong>Could not retrieve emails.</strong>
-            <p>{{ error }}</p>
-        </div>
-
-    {% elif emails %}
-
-        <div id="emailList">
-
-            {% for email in emails %}
-
-                <div class="email">
-
-                    <p class="sender">
-                        From: {{ email.sender|default:"Unknown sender" }}
-                    </p>
-
-                    <h3>
-                        {{ email.subject|default:"No subject" }}
-                    </h3>
-
-                    <p class="date">
-                        {{ email.date|default:"Date unavailable" }}
-                    </p>
-
-                    <p class="preview">
-                        {{ email.snippet|default:"No preview available." }}
-                    </p>
-
-                    {% if email.body %}
-
-                        <details>
-                            <summary>View full email content</summary>
-
-                            <p class="preview">{{ email.body }}</p>
-                        </details>
-
-                    {% endif %}
-
+            {% if error %}
+                <div class="error" role="alert">
+                    {{ error }}
                 </div>
+            {% endif %}
 
-            {% endfor %}
+            <div
+                id="passwordError"
+                class="error"
+                role="alert"
+                hidden
+            ></div>
 
+            <form
+                id="inboxPasswordForm"
+                method="post"
+                action="{% url 'emailassistant:verify_inbox_password' %}"
+                autocomplete="off"
+            >
+                {% csrf_token %}
+
+                <label for="inbox_password">
+                    Inbox verification password
+                </label>
+
+                <input
+                    type="password"
+                    id="inbox_password"
+                    name="password"
+                    placeholder="Enter your inbox password"
+                    autocomplete="current-password"
+                    required
+                >
+
+                <button type="submit" id="verifyPasswordButton">
+                    Verify and Open Inbox
+                </button>
+            </form>
+
+            <div
+                id="passwordStatus"
+                class="status"
+                role="status"
+                aria-live="polite"
+                hidden
+            ></div>
         </div>
 
     {% else %}
 
-        <p class="empty-message">
-            No emails were found in the Gmail inbox assigned to your login.
-        </p>
+        <div class="button-group">
+            <button type="button" id="readButton" onclick="readAllEmails()">
+                🔊 Read My Emails
+            </button>
+
+            <button type="button" onclick="pauseReading()">
+                ⏸ Pause
+            </button>
+
+            <button type="button" onclick="resumeReading()">
+                ▶ Resume
+            </button>
+
+            <button type="button" onclick="stopReading()">
+                ⏹ Stop Reading
+            </button>
+        </div>
+
+        <div
+            id="speechStatus"
+            class="status"
+            role="status"
+            aria-live="polite"
+        >
+            Ready. Click "Read My Emails" to hear your messages.
+        </div>
+
+        {% if error %}
+
+            <div class="error" role="alert">
+                <strong>Could not retrieve emails.</strong>
+                <p>{{ error }}</p>
+            </div>
+
+        {% elif emails %}
+
+            <div id="emailList">
+
+                {% for email in emails %}
+
+                    <div class="email">
+
+                        <p class="sender">
+                            From: {{ email.sender|default:"Unknown sender" }}
+                        </p>
+
+                        <h3>
+                            {{ email.subject|default:"No subject" }}
+                        </h3>
+
+                        <p class="date">
+                            {{ email.date|default:"Date unavailable" }}
+                        </p>
+
+                        <p class="preview">
+                            {{ email.snippet|default:"No preview available." }}
+                        </p>
+
+                        {% if email.body %}
+                            <details>
+                                <summary>View full email content</summary>
+                                <p class="preview">{{ email.body }}</p>
+                            </details>
+                        {% endif %}
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <p class="empty-message">
+                No emails were found in the connected Gmail inbox.
+            </p>
+
+        {% endif %}
 
     {% endif %}
 
 </div>
 
 <script>
+    /*
+     * INBOX PASSWORD VERIFICATION
+     *
+     * Sends the password to the separate inbox-password endpoint.
+     * On success, redirects to Read Emails instead of displaying JSON.
+     */
+    const inboxPasswordForm = document.getElementById("inboxPasswordForm");
+
+    if (inboxPasswordForm) {
+        inboxPasswordForm.addEventListener("submit", async function (event) {
+            event.preventDefault();
+
+            const passwordError = document.getElementById("passwordError");
+            const passwordStatus = document.getElementById("passwordStatus");
+            const verifyButton = document.getElementById("verifyPasswordButton");
+
+            passwordError.hidden = true;
+            passwordError.textContent = "";
+
+            passwordStatus.hidden = false;
+            passwordStatus.textContent = "Verifying your inbox password...";
+
+            verifyButton.disabled = true;
+            verifyButton.textContent = "Verifying...";
+
+            try {
+                const formData = new FormData(inboxPasswordForm);
+
+                const response = await fetch(inboxPasswordForm.action, {
+                    method: "POST",
+                    body: formData,
+                    credentials: "same-origin",
+                    headers: {
+                        "X-Requested-With": "XMLHttpRequest"
+                    }
+                });
+
+                let data;
+
+                try {
+                    data = await response.json();
+                } catch (parseError) {
+                    throw new Error(
+                        "The server returned an unexpected response. " +
+                        "Check the Django inbox-password verification view."
+                    );
+                }
+
+                if (response.ok && data.success) {
+                    passwordStatus.textContent =
+                        "Password verified. Opening your inbox...";
+
+                    /*
+                     * Use the redirect URL returned by Django.
+                     * Fall back to the Read Emails page if it is absent.
+                     */
+                    const inboxURL =
+                        data.redirect_url ||
+                        "{% url 'emailassistant:read_emails' %}";
+
+                    window.location.assign(inboxURL);
+                    return;
+                }
+
+                passwordStatus.hidden = true;
+                passwordError.textContent =
+                    data.message ||
+                    data.error ||
+                    "Password verification failed. Please try again.";
+
+                passwordError.hidden = false;
+
+            } catch (error) {
+                passwordStatus.hidden = true;
+                passwordError.textContent =
+                    error.message ||
+                    "Unable to verify the password. Please try again.";
+
+                passwordError.hidden = false;
+
+            } finally {
+                verifyButton.disabled = false;
+                verifyButton.textContent = "Verify and Open Inbox";
+            }
+        });
+    }
+
+
+    /*
+     * EMAIL TEXT-TO-SPEECH
+     */
     let emailMessages = [];
     let currentEmailIndex = 0;
     let readingStopped = true;
@@ -293,7 +431,9 @@
     const statusElement = document.getElementById("speechStatus");
 
     function setStatus(message) {
-        statusElement.textContent = message;
+        if (statusElement) {
+            statusElement.textContent = message;
+        }
     }
 
     function clearSpeakingHighlight() {
@@ -303,9 +443,9 @@
     }
 
     function getEmailMessages() {
-        const emailCards = document.querySelectorAll("#emailList .email");
+        const cards = document.querySelectorAll("#emailList .email");
 
-        return Array.from(emailCards).map((card, index) => {
+        return Array.from(cards).map((card, index) => {
             const sender =
                 card.querySelector(".sender")?.innerText || "Unknown sender";
 
@@ -318,11 +458,8 @@
             const preview =
                 card.querySelector(":scope > .preview")?.innerText || "";
 
-            const fullBody =
+            const body =
                 card.querySelector("details .preview")?.innerText || "";
-
-            // Use the full body when available; otherwise use the preview.
-            const messageBody = fullBody.trim() || preview.trim();
 
             return {
                 card: card,
@@ -331,7 +468,7 @@
                     `From: ${sender}. ` +
                     `Subject: ${subject}. ` +
                     `${date}. ` +
-                    `Message: ${messageBody}`
+                    `Message: ${body.trim() || preview.trim()}`
             };
         });
     }
@@ -376,29 +513,27 @@
             readingStopped = true;
             currentUtterance = null;
             clearSpeakingHighlight();
-
             setStatus("Finished reading all emails.");
             return;
         }
 
-        const currentEmail = emailMessages[currentEmailIndex];
+        const item = emailMessages[currentEmailIndex];
 
         clearSpeakingHighlight();
-        currentEmail.card.classList.add("speaking");
 
-        currentEmail.card.scrollIntoView({
+        item.card.classList.add("speaking");
+
+        item.card.scrollIntoView({
             behavior: "smooth",
             block: "center"
         });
 
         setStatus(
-            `Reading email ${currentEmailIndex + 1} of ` +
-            `${emailMessages.length}.`
+            `Reading email ${currentEmailIndex + 1} ` +
+            `of ${emailMessages.length}.`
         );
 
-        currentUtterance = new SpeechSynthesisUtterance(
-            currentEmail.text
-        );
+        currentUtterance = new SpeechSynthesisUtterance(item.text);
 
         currentUtterance.lang = "en-IN";
         currentUtterance.rate = 0.9;
@@ -423,8 +558,8 @@
             clearSpeakingHighlight();
 
             setStatus(
-                "Speech error: " + event.error +
-                ". Try clicking Read My Emails again."
+                `Speech error: ${event.error}. ` +
+                "Try clicking Read My Emails again."
             );
         };
 
@@ -471,11 +606,9 @@
         }
 
         clearSpeakingHighlight();
-
         setStatus("Email reading stopped.");
     }
 
-    // Stop speech when leaving this page.
     window.addEventListener("pagehide", function () {
         if ("speechSynthesis" in window) {
             window.speechSynthesis.cancel();

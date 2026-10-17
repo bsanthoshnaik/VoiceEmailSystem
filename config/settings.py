@@ -1,5 +1,9 @@
 import os
 from pathlib import Path
+import os
+
+GMAIL_READ_PASSWORD = os.environ.get("GMAIL_READ_PASSWORD", "")
+
 
 import dj_database_url
 

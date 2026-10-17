@@ -506,8 +506,14 @@
     </div>
 
     <nav class="header-links">
-        <a href="{% url 'compose_email' %}">✉️ Compose Email</a>
-        <a href="{% url 'read_emails' %}">📥 Read Emails</a>
+        <a href="{% url 'emailassistant:compose_email' %}">
+            ✉️ Compose Email
+        </a>
+
+        <!-- FIXED: Read Emails now points to the Django read_emails URL. -->
+<a href="{% url 'emailassistant:read_emails' %}?verify=1">
+    📥 Read Emails
+</a>
 
         <button
             id="dashboardButton"
@@ -605,8 +611,6 @@
             </form>
         </div>
 
-        <!-- Account details appear after password verification -->
-
         <div id="verifiedAccountDetails" hidden>
 
             <div class="account-details">
@@ -667,7 +671,7 @@
 
                 <form
                     method="post"
-                    action="{% url 'email_logout' %}"
+                    action="{% url 'emailassistant:email_logout' %}"
                     onsubmit="return confirm('Disconnect Gmail from this application?');">
 
                     {% csrf_token %}
@@ -915,7 +919,7 @@
 
             </div>
 
-            <a class="manual-link" href="{% url 'compose_email' %}">
+            <a class="manual-link" href="{% url 'emailassistant:compose_email' %}">
                 Open Compose Email
             </a>
 
@@ -933,9 +937,7 @@
 (function () {
     "use strict";
 
-    // ========================================
     // DASHBOARD AND ACCOUNT PAGE SWITCHING
-    // ========================================
 
     const accountButton = document.getElementById("accountButton");
     const dashboardButton = document.getElementById("dashboardButton");
@@ -952,7 +954,8 @@
     const verifiedAccountDetails =
         document.getElementById("verifiedAccountDetails");
 
-    const verifyPasswordURL = "{% url 'verify_account_password' %}";
+    const verifyPasswordURL =
+        "{% url 'emailassistant:verify_account_password' %}";
 
     function showDashboard() {
         dashboardSection.hidden = false;
@@ -1002,9 +1005,7 @@
         backToDashboard.addEventListener("click", showDashboard);
     }
 
-    // ========================================
     // ACCOUNT PASSWORD VERIFICATION
-    // ========================================
 
     function showAccountMessage(message, type) {
         if (!accountMessage) {
@@ -1045,10 +1046,7 @@
             const password = passwordInput.value;
 
             if (!password) {
-                showAccountMessage(
-                    "Please enter your password.",
-                    "error"
-                );
+                showAccountMessage("Please enter your password.", "error");
                 return;
             }
 
@@ -1072,17 +1070,14 @@
             try {
                 const response = await fetch(verifyPasswordURL, {
                     method: "POST",
-
                     headers: {
                         "Content-Type": "application/x-www-form-urlencoded",
                         "X-CSRFToken": csrfInput.value,
                         "X-Requested-With": "XMLHttpRequest"
                     },
-
                     body: new URLSearchParams({
                         password: password
                     }),
-
                     credentials: "same-origin"
                 });
 
@@ -1107,7 +1102,6 @@
 
                     passwordInput.value = "";
                     passwordInput.focus();
-
                     return;
                 }
 
@@ -1141,9 +1135,7 @@
         });
     }
 
-    // ========================================
     // AVAILABLE COMMANDS TOGGLE
-    // ========================================
 
     const commandsButton = document.getElementById("commandsButton");
     const commandsContent = document.getElementById("commandsContent");
@@ -1153,19 +1145,14 @@
 
         commandsContent.hidden = !show;
 
-        commandsButton.setAttribute(
-            "aria-expanded",
-            String(show)
-        );
+        commandsButton.setAttribute("aria-expanded", String(show));
 
         commandsButton.textContent = show
             ? "Hide Commands"
             : "Show All Commands";
     });
 
-    // ========================================
     // VOICE ASSISTANT
-    // ========================================
 
     const statusBadge = document.getElementById("statusBadge");
     const statusLabel = document.getElementById("statusLabel");
@@ -1178,9 +1165,8 @@
     const stopButton = document.getElementById("stopButton");
     const manualButton = document.getElementById("manualButton");
 
-    const composeURL = "{% url 'compose_email' %}";
-    const readEmailsURL = "{% url 'read_emails' %}";
-
+    const composeURL = "{% url 'emailassistant:compose_email' %}";
+const readEmailsURL = "{% url 'emailassistant:read_emails' %}?verify=1";
     const SpeechRecognitionAPI =
         window.SpeechRecognition ||
         window.webkitSpeechRecognition;
@@ -1193,9 +1179,7 @@
     let recognition = null;
     let restartTimer = null;
 
-    // ========================================
     // STATUS
-    // ========================================
 
     function setStatus(text, active, error) {
         statusLabel.textContent = text;
@@ -1209,9 +1193,7 @@
         );
     }
 
-    // ========================================
     // TEXT-TO-SPEECH
-    // ========================================
 
     function speak(text, callback) {
         assistantResponse.textContent = text;
@@ -1249,9 +1231,7 @@
         window.speechSynthesis.speak(utterance);
     }
 
-    // ========================================
     // STOP SPEECH RECOGNITION
-    // ========================================
 
     function stopRecognition() {
         if (restartTimer) {
@@ -1276,9 +1256,7 @@
         }
     }
 
-    // ========================================
     // STOP ASSISTANT
-    // ========================================
 
     function stopAssistant() {
         assistantEnabled = false;
@@ -1303,9 +1281,7 @@
         stopButton.disabled = true;
     }
 
-    // ========================================
     // START ASSISTANT
-    // ========================================
 
     function startAssistant() {
         if (!speechSupported) {
@@ -1338,9 +1314,7 @@
         startWakeListener();
     }
 
-    // ========================================
     // WAKE WORD LISTENER
-    // ========================================
 
     function startWakeListener() {
         if (!assistantEnabled || commandMode || recognition) {
@@ -1441,9 +1415,7 @@
         }
     }
 
-    // ========================================
     // COMMAND LISTENER
-    // ========================================
 
     function startCommandListener() {
         if (!assistantEnabled || !commandMode || recognition) {
@@ -1512,14 +1484,11 @@
         }
     }
 
-    // ========================================
     // HANDLE VOICE COMMANDS
-    // ========================================
 
     function handleVoiceCommand(text) {
         const command = text.toLowerCase().trim();
 
-        // Stop assistant
         if (
             command.includes("stop assistant") ||
             command.includes("stop listening")
@@ -1527,10 +1496,6 @@
             speak("Assistant stopped.", stopAssistant);
             return;
         }
-
-        // IMPORTANT:
-        // Compose Email now opens the page directly.
-        // The dashboard no longer asks for recipient, subject or message.
 
         if (
             command.includes("compose email") ||
@@ -1547,7 +1512,6 @@
             return;
         }
 
-        // Read emails
         if (
             command.includes("read emails") ||
             command.includes("read email") ||
@@ -1559,7 +1523,6 @@
             return;
         }
 
-        // Show commands
         if (
             command.includes("show commands") ||
             command.includes("list commands") ||
@@ -1581,12 +1544,9 @@
         );
     }
 
-    // ========================================
     // OPEN A PAGE DIRECTLY
-    // ========================================
 
     function openPage(url, message) {
-        // Stop recognition before navigating to another page.
         stopRecognition();
 
         commandMode = false;
@@ -1594,14 +1554,9 @@
         speak(message, function () {
             window.location.href = url;
         });
-
-        // If speech synthesis is unavailable, speak() navigates immediately
-        // through its callback.
     }
 
-    // ========================================
     // BUTTON EVENT LISTENERS
-    // ========================================
 
     startButton.addEventListener("click", startAssistant);
 
@@ -1615,7 +1570,6 @@
 
     stopButton.addEventListener("click", stopAssistant);
 
-    // Manual Compose button also opens the page directly.
     manualButton.addEventListener("click", function () {
         stopRecognition();
         window.location.href = composeURL;
@@ -1636,7 +1590,6 @@
         setStatus("Not listening", false, false);
     }
 
-    // Show Dashboard when the page loads.
     showDashboard();
 
 })();
