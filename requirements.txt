@@ -49,3 +49,4 @@ tzdata==2026.5
 uritemplate==4.2.0
 urllib3==2.8.0
 yarl==1.25.1
+gunicorn==23.0.0
